@@ -185,6 +185,24 @@ class Op:
         time.sleep(0.12)
         return x, y
 
+    def double_click(self, rx: float, ry: float, *, settle: float = 0.18) -> tuple[int, int]:
+        """
+        Some collapsible section headers (e.g. ME51N's "Item Overview") only
+        expand on a genuine double-click — a single click, or two single clicks
+        separated by enough time to not register as one, does nothing visible.
+        """
+        win32api, win32con, _, _ = _win32()
+        self.focus(settle)
+        x, y = self._abs(rx, ry)
+        win32api.SetCursorPos((x, y))
+        for _ in range(2):
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(0.03)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            time.sleep(0.06)
+        time.sleep(0.12)
+        return x, y
+
     def type(self, text: str, *, pace: float = 0.05, secret: bool = False) -> None:
         # SendKeys goes to whatever window the OS currently considers foreground —
         # which is NOT guaranteed to still be this one, especially across separate
