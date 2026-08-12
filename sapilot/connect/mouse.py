@@ -16,6 +16,26 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 
+def _ensure_dpi_aware() -> None:
+    """
+    Without this, GetWindowRect/GetCursorPos report virtualized (96-DPI) coordinates
+    while SetCursorPos and screen capture act on physical pixels — every click lands
+    off-target on any display scaled above 100%. Must run before any win32 GUI call.
+    """
+    import ctypes
+
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+
+_ensure_dpi_aware()
+
+
 def mouse_enabled() -> bool:
     """Default ON unless SAPILOT_SHOW_MOUSE=0."""
     return os.environ.get("SAPILOT_SHOW_MOUSE", "1").strip() not in {"0", "false", "False", "no"}
@@ -137,16 +157,24 @@ def click_sap_component(com_obj: Any) -> bool:
     return True
 
 
-def focus_window(hwnd: int) -> None:
+def focus_window(hwnd: int, *, settle: float = 0.2) -> None:
     import win32con  # type: ignore
     import win32gui  # type: ignore
 
     try:
-        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        # SW_RESTORE un-maximizes an already-maximized window — only use it to
+        # un-minimize, never to "normalize" a window that's already in the state we want.
+        if win32gui.GetWindowPlacement(hwnd)[1] == win32con.SW_SHOWMINIMIZED:
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
-        time.sleep(0.2)
     except Exception:
-        pass
+        try:
+            import win32com.client  # type: ignore
+
+            win32com.client.Dispatch("WScript.Shell").AppActivate(win32gui.GetWindowText(hwnd))
+        except Exception:
+            pass
+    time.sleep(settle)
 
 
 def click_window_point(hwnd: int, rel_x: float, rel_y: float) -> tuple[int, int]:
