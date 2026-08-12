@@ -17,6 +17,29 @@ python -m pytest
 
 Or: `run.bat diagnose --bukrs 1000 --method A --mock`
 
+## Deploy (local) + GitHub
+
+```bat
+REM Save / commit / push (from repo root with Git installed)
+git add -A
+git status
+git commit -m "your message"
+git push origin main
+
+REM Local deploy (starts UIs on localhost)
+deploy.bat
+```
+
+| Surface | URL |
+|---------|-----|
+| Co-pilot | http://127.0.0.1:8765 |
+| Mega Co-pilot | http://127.0.0.1:8777 |
+| Auto bot | http://127.0.0.1:8788 |
+
+Repo: https://github.com/srinaidu4data-coder/SAP  
+
+**Product bar is ONLINE GUI** — see `PRODUCT_ONLINE.md`. Enable SAP scripting + Vista login for mouse automation.
+
 ## What you get
 
 | Capability | Status |
