@@ -1,0 +1,13 @@
+id: ptp_08_invoice_verification
+title: "PTP-08 Invoice verification (RBKP/RSEG)"
+description: Supplier invoice posted (MIRO) linked to PO.
+params: [belnr_inv, gjahr]
+steps:
+  - action: read_table
+    table: RBKP
+    options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+    as: RBKP
+  - action: read_table
+    table: RSEG
+    options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+    as: RSEG

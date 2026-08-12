@@ -1,0 +1,13 @@
+id: ptp_05_purchase_requisition
+title: "PTP-05 Purchase requisition (EBAN)"
+description: Open PR items ready for conversion to PO.
+params: [banfn]
+steps:
+  - action: read_table
+    table: EBAN
+    options: ["BANFN = '{banfn}'"]
+    as: EBAN
+  - action: tcode
+    tcode: ME53N
+  - action: snapshot
+    as: pr_screen

@@ -1,0 +1,13 @@
+id: otc_02_material_sales
+title: "OTC-02 Material sales views (MARA/MVKE)"
+description: Material + sales org distribution channel views.
+params: [matnr, vkorg, vtweg]
+steps:
+  - action: read_table
+    table: MARA
+    options: ["MATNR = '{matnr}'"]
+    as: MARA
+  - action: read_table
+    table: MVKE
+    options: ["MATNR = '{matnr}'", "AND VKORG = '{vkorg}'"]
+    as: MVKE

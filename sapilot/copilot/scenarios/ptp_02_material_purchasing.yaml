@@ -1,0 +1,19 @@
+id: ptp_02_material_purchasing
+title: "PTP-02 Material purchasing views (MARA/MARC/MBEW)"
+description: Material type ROH, plant MRP/purchasing, valuation for inventory posting.
+params: [matnr, werks]
+steps:
+  - action: note
+    text: "PTP-02 Material {matnr} plant {werks}"
+  - action: read_table
+    table: MARA
+    options: ["MATNR = '{matnr}'"]
+    as: MARA
+  - action: read_table
+    table: MARC
+    options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+    as: MARC
+  - action: read_table
+    table: MBEW
+    options: ["MATNR = '{matnr}'"]
+    as: MBEW

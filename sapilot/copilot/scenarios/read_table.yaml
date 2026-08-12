@@ -1,0 +1,15 @@
+id: read_table
+title: Extract rows from any SAP table (RFC preferred)
+description: >
+  Reads a table via RFC_READ_TABLE. Falls back to SE16N GUI if RFC missing.
+params:
+  - table
+
+steps:
+  - action: note
+    text: "Extract table {table}"
+
+  - action: read_table
+    table: "{table}"
+    rowcount: 100
+    as: table_data

@@ -1,0 +1,37 @@
+id: vendor_line_items
+title: FBL1N — Vendor open items (GUI + BSIK extract)
+description: >
+  Starts FBL1N for a vendor, executes selection (F8), extracts grid if present,
+  and confirms open items via BSIK knowledge channel.
+params:
+  - lifnr
+  - bukrs
+
+steps:
+  - action: tcode
+    tcode: FBL1N
+
+  - action: set
+    target: KD_LIFNR-LOW
+    value: "{lifnr}"
+
+  - action: set
+    target: KD_BUKRS-LOW
+    value: "{bukrs}"
+
+  - action: f8
+    continue_on_error: true
+
+  - action: wait
+    seconds: 0.5
+
+  - action: extract_grid
+    as: line_items_grid
+
+  - action: read_table
+    table: BSIK
+    options:
+      - "BUKRS = '{bukrs}'"
+      - "AND LIFNR = '{lifnr}'"
+    rowcount: 100
+    as: bsik

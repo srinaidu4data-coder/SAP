@@ -1,0 +1,9 @@
+id: otc_03_customer_material
+title: "OTC-03 Customer-material info (KNMT)"
+description: Customer material number mapping.
+params: [kunnr, matnr, vkorg]
+steps:
+  - action: read_table
+    table: KNMT
+    options: ["KUNNR = '{kunnr}'", "AND MATNR = '{matnr}'"]
+    as: KNMT

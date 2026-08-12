@@ -1,0 +1,42 @@
+id: f110_parameters
+title: F110 — Open payment run and fill parameters (demo-safe)
+description: >
+  Logs into F110, fills run date / identification fields, enables additional log tab.
+  Does NOT execute payment run (safe for T2 with GUI write; proposal separate).
+requires_tier: null
+params:
+  - laufd
+  - laufi
+  - bukrs
+  - method
+
+steps:
+  - action: note
+    text: "Open Automatic Payment Program"
+
+  - action: tcode
+    tcode: F110
+
+  - action: snapshot
+    as: screen_f110
+
+  - action: set
+    target: F110V-LAUFD
+    value: "{laufd}"
+
+  - action: set
+    target: F110V-LAUFI
+    value: "{laufi}"
+
+  - action: note
+    text: "Parameters filled — Additional Log should be enabled before proposal"
+
+  - action: status
+  - action: assert_status_not_error
+    continue_on_error: true
+
+  - action: read_config
+    kind: fbzp
+    bukrs: "{bukrs}"
+    method: "{method}"
+    as: fbzp

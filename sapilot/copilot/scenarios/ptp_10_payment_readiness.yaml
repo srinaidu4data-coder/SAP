@@ -1,0 +1,23 @@
+id: ptp_10_payment_readiness
+title: "PTP-10 Payment readiness (FBZP + F110 diagnose tables)"
+description: End of PTP — can we pay the vendor open items via F110?
+params: [bukrs, method, lifnr, land1]
+steps:
+  - action: read_config
+    kind: fbzp
+    bukrs: "{bukrs}"
+    method: "{method}"
+    as: fbzp
+  - action: read_config
+    kind: vendor
+    lifnr: "{lifnr}"
+    bukrs: "{bukrs}"
+    as: vendor
+  - action: read_table
+    table: BSIK
+    options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+    as: open_items
+  - action: tcode
+    tcode: F110
+  - action: snapshot
+    as: f110_screen

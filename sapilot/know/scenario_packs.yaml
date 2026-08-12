@@ -1,0 +1,568 @@
+# Multi-table data packs for Co-pilot scenarios.
+# Each pack lists tables + key params; the gatherer fills options and runs readiness checks.
+
+version: 1
+
+packs:
+  ptp_01_vendor_master:
+    process: PTP
+    title: Vendor master readiness
+    params: [lifnr, bukrs, ekorg]
+    tables:
+      - table: LFA1
+        options: ["LIFNR = '{lifnr}'"]
+        required_rows: 1
+        missing_means: "Vendor does not exist"
+      - table: LFB1
+        options: ["LIFNR = '{lifnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Vendor not extended to company code"
+      - table: LFM1
+        options: ["LIFNR = '{lifnr}'", "AND EKORG = '{ekorg}'"]
+        required_rows: 1
+        missing_means: "Vendor not extended to purchasing org"
+      - table: LFBK
+        options: ["LIFNR = '{lifnr}'"]
+        required_rows: 0
+        warn_if_empty: "No bank details — ACH/wire payments will fail"
+    field_checks:
+      - table: LFB1
+        field: ZAHLS
+        expect_empty: true
+        severity: blocker
+        message: "Vendor payment block set (ZAHLS)"
+      - table: LFB1
+        field: ZWELS
+        contains_param: method
+        severity: warning
+        message: "Payment method not in vendor ZWELS"
+      - table: LFA1
+        field: SPERR
+        expect_empty: true
+        severity: blocker
+        message: "Central posting block on vendor"
+      - table: LFA1
+        field: LOEVM
+        expect_empty: true
+        severity: blocker
+        message: "Vendor marked for deletion"
+
+  ptp_02_material_purchasing:
+    process: PTP
+    title: Material purchasing views
+    params: [matnr, werks]
+    tables:
+      - table: MARA
+        options: ["MATNR = '{matnr}'"]
+        required_rows: 1
+        missing_means: "Material does not exist"
+      - table: MARC
+        options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+        required_rows: 1
+        missing_means: "Material not extended to plant"
+      - table: MBEW
+        options: ["MATNR = '{matnr}'"]
+        required_rows: 1
+        missing_means: "No valuation data — GR/IR postings may fail"
+    field_checks:
+      - table: MARC
+        field: MMSTA
+        expect_empty: true
+        severity: warning
+        message: "Plant-specific material status set"
+
+  ptp_03_info_record:
+    process: PTP
+    title: Purchasing info record
+    params: [matnr, lifnr, ekorg]
+    tables:
+      - table: EINA
+        options: ["MATNR = '{matnr}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 1
+        missing_means: "No general info record for material/vendor"
+      - table: EINE
+        options: ["EKORG = '{ekorg}'"]
+        required_rows: 1
+        missing_means: "No purchasing-org info record (price missing)"
+
+  ptp_04_source_list:
+    process: PTP
+    title: Source list
+    params: [matnr, werks]
+    tables:
+      - table: EORD
+        options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+        required_rows: 1
+        missing_means: "No source list — auto PO vendor determination may fail"
+
+  ptp_05_purchase_requisition:
+    process: PTP
+    title: Purchase requisition
+    params: [banfn]
+    tables:
+      - table: EBAN
+        options: ["BANFN = '{banfn}'"]
+        required_rows: 1
+        missing_means: "PR not found"
+    field_checks:
+      - table: EBAN
+        field: LOEKZ
+        expect_empty: true
+        severity: blocker
+        message: "PR item deleted"
+
+  ptp_06_purchase_order:
+    process: PTP
+    title: Purchase order
+    params: [ebeln]
+    tables:
+      - table: EKKO
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 1
+        missing_means: "PO header not found"
+      - table: EKPO
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 1
+        missing_means: "PO has no items"
+      - table: EKBE
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+    field_checks:
+      - table: EKKO
+        field: LOEKZ
+        expect_empty: true
+        severity: blocker
+        message: "PO header deleted"
+      - table: EKPO
+        field: LOEKZ
+        expect_empty: true
+        severity: warning
+        message: "PO item deletion flag set"
+
+  ptp_07_goods_receipt:
+    process: PTP
+    title: Goods receipt against PO
+    params: [ebeln]
+    tables:
+      - table: EKKO
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 1
+        missing_means: "PO not found for GR"
+      - table: EKBE
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+        warn_if_empty: "No PO history — no GR/IR yet"
+      - table: MSEG
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+        warn_if_empty: "No material documents for this PO"
+    custom_checks:
+      - id: gr_exists
+        type: ekbe_vgabe
+        vgabe: "1"
+        severity: info
+        message: "At least one GR (VGABE=1) exists"
+        fail_message: "No goods receipt (VGABE=1) in EKBE"
+
+  ptp_08_invoice_verification:
+    process: PTP
+    title: Invoice verification
+    params: [belnr_inv, gjahr]
+    tables:
+      - table: RBKP
+        options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+        required_rows: 1
+        missing_means: "Invoice header not found"
+      - table: RSEG
+        options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+        required_rows: 1
+        missing_means: "Invoice has no lines"
+
+  ptp_09_vendor_open_items:
+    process: PTP
+    title: Vendor open items for payment
+    params: [lifnr, bukrs]
+    tables:
+      - table: BSIK
+        options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 0
+        warn_if_empty: "No open vendor items — nothing to pay"
+    field_checks:
+      - table: BSIK
+        field: ZLSPR
+        expect_empty: true
+        severity: warning
+        message: "Open item has payment block ZLSPR"
+
+  ptp_10_payment_readiness:
+    process: PTP
+    title: Payment program readiness (FBZP + vendor + open items)
+    params: [bukrs, method, lifnr, land1]
+    use_fbzp: true
+    use_payment_diagnose: true
+    tables:
+      - table: T042
+        options: ["BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Company code not in payment program (T042)"
+      - table: T042E
+        options: ["ZBUKR = '{bukrs}'", "AND ZLSCH = '{method}'"]
+        required_rows: 1
+        missing_means: "Payment method not set up for company code (T042E)"
+      - table: T042I
+        options: ["ZBUKR = '{bukrs}'"]
+        required_rows: 0
+        warn_if_empty: "No bank ranking (T042I)"
+      - table: T042Y
+        options: ["ZBUKR = '{bukrs}'"]
+        required_rows: 0
+      - table: LFB1
+        options: ["LIFNR = '{lifnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Vendor company-code data missing"
+      - table: LFBK
+        options: ["LIFNR = '{lifnr}'"]
+        required_rows: 0
+        warn_if_empty: "Vendor bank details missing"
+      - table: BSIK
+        options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 0
+        warn_if_empty: "No open items to select in F110"
+
+  f110_diagnose:
+    process: AP
+    title: F110 payment diagnose pack
+    params: [bukrs, method, lifnr, land1]
+    use_fbzp: true
+    use_payment_diagnose: true
+    tables:
+      - table: T042E
+        options: ["ZBUKR = '{bukrs}'", "AND ZLSCH = '{method}'"]
+        required_rows: 0
+      - table: LFB1
+        options: ["LIFNR = '{lifnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 0
+      - table: BSIK
+        options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 0
+
+  f110_parameters:
+    process: AP
+    title: F110 parameter prep data
+    params: [bukrs, method, lifnr, laufd, laufi]
+    use_fbzp: true
+    tables:
+      - table: T042
+        options: ["BUKRS = '{bukrs}'"]
+        required_rows: 0
+      - table: BSIK
+        options: ["BUKRS = '{bukrs}'"]
+        required_rows: 0
+        warn_if_empty: "No open vendor items in company code"
+
+  # Generic multi-table debug packs
+  ptp_full_chain:
+    process: PTP
+    title: Full PTP chain multi-table snapshot
+    params: [lifnr, bukrs, ekorg, werks, matnr, banfn, ebeln, belnr_inv, gjahr, method, land1]
+    use_fbzp: true
+    use_payment_diagnose: true
+    tables:
+      - table: LFA1
+        options: ["LIFNR = '{lifnr}'"]
+        required_rows: 1
+        missing_means: "Vendor missing"
+      - table: LFB1
+        options: ["LIFNR = '{lifnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Vendor company code missing"
+      - table: LFM1
+        options: ["LIFNR = '{lifnr}'", "AND EKORG = '{ekorg}'"]
+        required_rows: 1
+        missing_means: "Vendor purchasing data missing"
+      - table: MARA
+        options: ["MATNR = '{matnr}'"]
+        required_rows: 1
+        missing_means: "Material missing"
+      - table: MARC
+        options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+        required_rows: 1
+        missing_means: "Material plant missing"
+      - table: EINA
+        options: ["MATNR = '{matnr}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 0
+      - table: EORD
+        options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+        required_rows: 0
+      - table: EBAN
+        options: ["BANFN = '{banfn}'"]
+        required_rows: 0
+      - table: EKKO
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+      - table: EKPO
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+      - table: EKBE
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+      - table: MSEG
+        options: ["EBELN = '{ebeln}'"]
+        required_rows: 0
+      - table: RBKP
+        options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+        required_rows: 0
+      - table: RSEG
+        options: ["BELNR = '{belnr_inv}'", "AND GJAHR = '{gjahr}'"]
+        required_rows: 0
+      - table: BSIK
+        options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+        required_rows: 0
+
+  otc_01_customer_master:
+    process: OTC
+    title: Customer master readiness
+    params: [kunnr, bukrs, vkorg]
+    tables:
+      - table: KNA1
+        options: ["KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "Customer does not exist"
+      - table: KNB1
+        options: ["KUNNR = '{kunnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Customer not extended to company code"
+      - table: KNVV
+        options: ["KUNNR = '{kunnr}'", "AND VKORG = '{vkorg}'"]
+        required_rows: 1
+        missing_means: "Customer not extended to sales area"
+
+  otc_02_material_sales:
+    process: OTC
+    title: Material sales views
+    params: [matnr, vkorg]
+    tables:
+      - table: MARA
+        options: ["MATNR = '{matnr}'"]
+        required_rows: 1
+        missing_means: "Material missing"
+      - table: MVKE
+        options: ["MATNR = '{matnr}'", "AND VKORG = '{vkorg}'"]
+        required_rows: 1
+        missing_means: "Material not extended to sales org"
+
+  otc_03_customer_material:
+    process: OTC
+    title: Customer-material info
+    params: [kunnr, matnr]
+    tables:
+      - table: KNMT
+        options: ["KUNNR = '{kunnr}'", "AND MATNR = '{matnr}'"]
+        required_rows: 0
+        warn_if_empty: "No customer-material info record"
+
+  otc_04_sales_org:
+    process: OTC
+    title: Sales area configuration
+    params: [vkorg, vtweg, spart]
+    tables:
+      - table: TVKO
+        options: ["VKORG = '{vkorg}'"]
+        required_rows: 1
+        missing_means: "Sales org missing"
+      - table: TVTW
+        options: ["VTWEG = '{vtweg}'"]
+        required_rows: 1
+        missing_means: "Distribution channel missing"
+      - table: TSPA
+        options: ["SPART = '{spart}'"]
+        required_rows: 1
+        missing_means: "Division missing"
+
+  otc_05_sales_order:
+    process: OTC
+    title: Sales order
+    params: [vbeln_so]
+    tables:
+      - table: VBAK
+        options: ["VBELN = '{vbeln_so}'"]
+        required_rows: 1
+        missing_means: "Sales order not found"
+      - table: VBAP
+        options: ["VBELN = '{vbeln_so}'"]
+        required_rows: 1
+        missing_means: "Sales order has no items"
+
+  otc_06_delivery:
+    process: OTC
+    title: Outbound delivery
+    params: [vbeln_dn]
+    tables:
+      - table: LIKP
+        options: ["VBELN = '{vbeln_dn}'"]
+        required_rows: 1
+        missing_means: "Delivery not found"
+      - table: LIPS
+        options: ["VBELN = '{vbeln_dn}'"]
+        required_rows: 1
+        missing_means: "Delivery has no items"
+
+  otc_07_goods_issue:
+    process: OTC
+    title: Goods issue / document flow
+    params: [vbeln_so, vbeln_dn]
+    tables:
+      - table: VBFA
+        options: ["VBELV = '{vbeln_so}'"]
+        required_rows: 1
+        missing_means: "No document flow from sales order"
+      - table: LIKP
+        options: ["VBELN = '{vbeln_dn}'"]
+        required_rows: 1
+        missing_means: "Delivery missing for GI check"
+
+  otc_08_billing:
+    process: OTC
+    title: Billing document
+    params: [vbeln_bill]
+    tables:
+      - table: VBRK
+        options: ["VBELN = '{vbeln_bill}'"]
+        required_rows: 1
+        missing_means: "Billing document not found"
+      - table: VBRP
+        options: ["VBELN = '{vbeln_bill}'"]
+        required_rows: 1
+        missing_means: "Billing has no items"
+
+  otc_09_customer_open_items:
+    process: OTC
+    title: Customer open items AR
+    params: [kunnr, bukrs]
+    tables:
+      - table: BSID
+        options: ["BUKRS = '{bukrs}'", "AND KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "No open customer items"
+
+  otc_10_incoming_payment:
+    process: OTC
+    title: Incoming payment readiness
+    params: [kunnr, bukrs]
+    tables:
+      - table: KNA1
+        options: ["KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "Customer missing"
+      - table: KNB1
+        options: ["KUNNR = '{kunnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "Customer company code missing"
+      - table: BSID
+        options: ["BUKRS = '{bukrs}'", "AND KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "No AR open items to clear"
+
+  # ---- ABAP debugging (read-only inspect — never field-value replace) ----
+  abap_01_runtime_dump:
+    process: ABAP
+    title: Runtime dump analysis (ST22)
+    params: [datum, uname, program]
+    tables:
+      - table: SNAP_BEG
+        options: ["DATUM = '{datum}'"]
+        required_rows: 1
+        missing_means: "No runtime dumps for selection"
+      - table: SNAP
+        options: ["DATUM = '{datum}'"]
+        required_rows: 1
+        missing_means: "SNAP dump detail missing"
+      - table: ZBOT_DEBUG_RECIPE
+        options: ["PROGRAM = '{program}'"]
+        required_rows: 0
+        warn_if_empty: "No trained debug recipe for this program"
+    field_checks:
+      - table: SNAP_BEG
+        field: ERRID
+        expect_empty: false
+        severity: warning
+        message: "Dump error id blank"
+
+  abap_02_source_inspect:
+    process: ABAP
+    title: ABAP source inspect (SE38 catalog)
+    params: [program]
+    tables:
+      - table: TRDIR
+        options: ["NAME = '{program}'"]
+        required_rows: 1
+        missing_means: "Program not in TRDIR"
+      - table: TFDIR
+        options: []
+        required_rows: 1
+        missing_means: "No function modules catalogued for BAPI inspect"
+      - table: ZBOT_DEBUG_RECIPE
+        options: ["PROGRAM = '{program}'"]
+        required_rows: 1
+        missing_means: "No safe debug recipe — train bot before live debug"
+    field_checks:
+      - table: ZBOT_DEBUG_RECIPE
+        field: SAFE
+        contains_param: abap_safe
+        severity: blocker
+        message: "Debug recipe not marked SAFE (read-only)"
+
+  otc_full_chain:
+    process: OTC
+    title: Full OTC chain multi-table snapshot
+    params: [kunnr, bukrs, vkorg, vtweg, spart, matnr, vbeln_so, vbeln_dn, vbeln_bill]
+    tables:
+      - table: KNA1
+        options: ["KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "Customer missing"
+      - table: KNB1
+        options: ["KUNNR = '{kunnr}'", "AND BUKRS = '{bukrs}'"]
+        required_rows: 1
+        missing_means: "KNB1 missing"
+      - table: KNVV
+        options: ["KUNNR = '{kunnr}'", "AND VKORG = '{vkorg}'"]
+        required_rows: 1
+        missing_means: "KNVV missing"
+      - table: MVKE
+        options: ["MATNR = '{matnr}'", "AND VKORG = '{vkorg}'"]
+        required_rows: 0
+      - table: KNMT
+        options: ["KUNNR = '{kunnr}'"]
+        required_rows: 0
+      - table: VBAK
+        options: ["VBELN = '{vbeln_so}'"]
+        required_rows: 1
+        missing_means: "SO missing"
+      - table: VBAP
+        options: ["VBELN = '{vbeln_so}'"]
+        required_rows: 1
+        missing_means: "SO items missing"
+      - table: LIKP
+        options: ["VBELN = '{vbeln_dn}'"]
+        required_rows: 1
+        missing_means: "DN missing"
+      - table: LIPS
+        options: ["VBELN = '{vbeln_dn}'"]
+        required_rows: 1
+        missing_means: "DN items missing"
+      - table: VBFA
+        options: ["VBELV = '{vbeln_so}'"]
+        required_rows: 0
+      - table: VBRK
+        options: ["VBELN = '{vbeln_bill}'"]
+        required_rows: 1
+        missing_means: "Billing missing"
+      - table: VBRP
+        options: ["VBELN = '{vbeln_bill}'"]
+        required_rows: 1
+        missing_means: "Billing items missing"
+      - table: BSID
+        options: ["BUKRS = '{bukrs}'", "AND KUNNR = '{kunnr}'"]
+        required_rows: 1
+        missing_means: "No AR open items"

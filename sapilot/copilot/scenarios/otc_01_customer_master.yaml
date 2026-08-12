@@ -1,0 +1,23 @@
+id: otc_01_customer_master
+title: "OTC-01 Customer master (KNA1/KNB1/KNVV)"
+description: Customer general, company code, sales area data.
+params: [kunnr, bukrs, vkorg, vtweg, spart]
+steps:
+  - action: note
+    text: "OTC-01 Customer {kunnr}"
+  - action: read_table
+    table: KNA1
+    options: ["KUNNR = '{kunnr}'"]
+    as: KNA1
+  - action: read_table
+    table: KNB1
+    options: ["KUNNR = '{kunnr}'", "AND BUKRS = '{bukrs}'"]
+    as: KNB1
+  - action: read_table
+    table: KNVV
+    options: ["KUNNR = '{kunnr}'", "AND VKORG = '{vkorg}'"]
+    as: KNVV
+  - action: tcode
+    tcode: XD03
+  - action: snapshot
+    as: customer_screen

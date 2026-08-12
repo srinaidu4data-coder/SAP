@@ -1,0 +1,131 @@
+# Payment program (FZ) — cause-based remediations keyed on symptom patterns.
+# Exact message numbers resolved at runtime from T100 — do not hardcode as sole key.
+message_class: FZ
+version: "1.0"
+
+symptoms:
+  - id: no_valid_payment_method
+    patterns:
+      - "No valid payment method found"
+      - "no payment method"
+      - "payment method could not be determined"
+    checks_in_order:
+      - table: LFB1
+        field: ZWELS
+        test: "payment method not in ZWELS"
+        fix: "Add method to vendor company-code payment methods"
+      - table: T042E
+        field: ZLSCH
+        test: "method not configured for company code"
+        fix: "FBZP payment methods in company code"
+      - table: T042E
+        field: VONBT/BISBT
+        test: "amount outside min/max"
+        fix: "Adjust T042E amount limits or split payment"
+      - table: T042E
+        field: WAERS
+        test: "currency not allowed"
+        fix: "Allow currency on T042E / use correct currency"
+      - table: LFB1
+        field: ZAHLS
+        test: "vendor payment block"
+        fix: "Clear ZAHLS if appropriate"
+      - table: BSIK
+        field: ZLSPR
+        test: "item payment block"
+        fix: "Clear ZLSPR / review T008"
+
+  - id: method_not_allowed_for_account
+    patterns:
+      - "Payment method not allowed for this account"
+      - "bank details are required"
+      - "specify bank details"
+    checks_in_order:
+      - table: T042Z
+        field: bank_details_flag
+        test: "method requires bank details"
+        fix: null
+      - table: LFBK
+        field: BANKN
+        test: "LFBK empty"
+        fix: "Maintain vendor bank details"
+      - table: T042E
+        field: foreign_flags
+        test: "foreign BP/currency not allowed"
+        fix: "Adjust foreign allowances on T042E"
+
+  - id: no_house_bank
+    patterns:
+      - "No house bank"
+      - "bank determination"
+      - "No bank could be determined"
+      - "account determination"
+    checks_in_order:
+      - table: T042I
+        field: ranking
+        test: "ranking missing for method+currency"
+        fix: "FBZP bank determination ranking"
+      - table: T042A
+        field: account_assignment
+        test: "account assignment missing"
+        fix: "FBZP bank accounts"
+      - table: T012K
+        field: HKTID
+        test: "house bank account missing"
+        fix: "Maintain house bank accounts"
+      - table: T042Y
+        field: available_amount
+        test: "available amount zero or exhausted"
+        fix: "Maintain available amounts (most commonly missed)"
+
+  - id: item_blocked
+    patterns:
+      - "Item blocked for payment"
+      - "blocked for payment"
+      - "payment block"
+    checks_in_order:
+      - table: BSIK
+        field: ZLSPR
+        test: "item block set"
+        fix: "Clear item block"
+      - table: T008
+        field: reason
+        test: "block reason config"
+        fix: "Review block reason"
+      - table: LFB1
+        field: ZAHLS
+        test: "vendor-level block"
+        fix: "Clear vendor payment block"
+
+  - id: nothing_selected
+    patterns:
+      - "No items selected"
+      - "no open items"
+      - "list is empty"
+    checks_in_order:
+      - table: BSIK
+        field: dates
+        test: "posting/docs-entered window excludes items"
+        fix: "Widen Docs Entered Up To / posting date"
+      - table: LFB1
+        field: ZTERM
+        test: "due date outside next payment date"
+        fix: "Adjust next payment date or terms"
+      - table: T042
+        field: BUKRS
+        test: "company code not sending code"
+        fix: "Maintain T042"
+
+  - id: proposal_no_post
+    patterns:
+      - "proposal not released"
+      - "payments not posted"
+    checks_in_order:
+      - table: REGUV
+        field: status
+        test: "proposal not completed"
+        fix: "Complete proposal before payment run"
+      - table: REGUP
+        field: count
+        test: "zero items"
+        fix: "Resolve exceptions first"

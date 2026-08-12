@@ -1,0 +1,45 @@
+# Signed local policy overlay. Tier is NEVER taken from user/LLM input alone.
+# Derivation: max(T000-CCCATEGORY mapping, this file's client_overrides) with
+# production clients always forced to T3_OBSERVE.
+
+version: 1
+issuer: sapilot-local
+# HMAC signature of canonical body (excluding signature field) using machine-bound key.
+# Empty signature = unsigned (allowed only when SAPILOT_ALLOW_UNSIGNED_POLICY=1 for lab use).
+signature: ""
+
+defaults:
+  # If T000 is unavailable, refuse to assume T1
+  unknown_client_tier: T3_OBSERVE
+  require_signed_policy_outside_lab: true
+
+# Map SAP client role (T000-CCCATEGORY) → SAPILOT tier
+# Common CCCATEGORY values: P=Production, T=Test, C=Customizing, D=Demo, S=Sandbox (varies)
+cccategory_map:
+  P: T3_OBSERVE
+  " ": T3_OBSERVE   # blank often means production in older systems
+  T: T2_SUPERVISED
+  Q: T2_SUPERVISED
+  C: T2_SUPERVISED
+  D: T1_SANDBOX
+  S: T1_SANDBOX
+  E: T1_SANDBOX     # education / training
+
+# Explicit client overrides (mandt → tier). Production never overridable to T1.
+client_overrides:
+  # "100": T1_SANDBOX   # example sandbox client
+
+governor:
+  max_steps: 80
+  max_wall_seconds: 1800
+  max_tokens: 500000
+  max_sap_round_trips: 200
+  max_remediation_per_signature: 2
+  novelty_window: 5
+
+transport:
+  dedicated_request: SAPILOT_AUTOCFG
+
+channels:
+  default: hybrid
+  allow_vision: false

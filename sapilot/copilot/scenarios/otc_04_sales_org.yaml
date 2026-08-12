@@ -1,0 +1,17 @@
+id: otc_04_sales_org
+title: "OTC-04 Sales area config (TVKO/TVTW/TSPA)"
+description: Sales org / channel / division existence.
+params: [vkorg, vtweg, spart]
+steps:
+  - action: read_table
+    table: TVKO
+    options: ["VKORG = '{vkorg}'"]
+    as: TVKO
+  - action: read_table
+    table: TVTW
+    options: ["VTWEG = '{vtweg}'"]
+    as: TVTW
+  - action: read_table
+    table: TSPA
+    options: ["SPART = '{spart}'"]
+    as: TSPA

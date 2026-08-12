@@ -1,0 +1,17 @@
+id: otc_06_delivery
+title: "OTC-06 Outbound delivery (LIKP/LIPS)"
+description: Delivery header/items linked to sales order.
+params: [vbeln_dn]
+steps:
+  - action: read_table
+    table: LIKP
+    options: ["VBELN = '{vbeln_dn}'"]
+    as: LIKP
+  - action: read_table
+    table: LIPS
+    options: ["VBELN = '{vbeln_dn}'"]
+    as: LIPS
+  - action: tcode
+    tcode: VL03N
+  - action: snapshot
+    as: dn_screen

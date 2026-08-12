@@ -1,0 +1,31 @@
+id: vendor_display
+title: XK03 — Display vendor + extract master data
+description: >
+  Opens XK03, enters vendor/company code, and reads LFA1/LFB1/LFBK via knowledge channel.
+params:
+  - lifnr
+  - bukrs
+
+steps:
+  - action: tcode
+    tcode: XK03
+
+  - action: set
+    target: RF02K-LIFNR
+    value: "{lifnr}"
+
+  - action: set
+    target: RF02K-BUKRS
+    value: "{bukrs}"
+
+  - action: enter
+    continue_on_error: true
+
+  - action: snapshot
+    as: vendor_screen
+
+  - action: read_config
+    kind: vendor
+    lifnr: "{lifnr}"
+    bukrs: "{bukrs}"
+    as: vendor

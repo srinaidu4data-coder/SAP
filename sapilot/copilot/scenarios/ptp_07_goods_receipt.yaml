@@ -1,0 +1,16 @@
+id: ptp_07_goods_receipt
+title: "PTP-07 Goods receipt history (EKBE/MKPF/MSEG)"
+description: Confirm GR 101 posted against PO and stock movement exists.
+params: [ebeln]
+steps:
+  - action: read_table
+    table: EKBE
+    options: ["EBELN = '{ebeln}'"]
+    as: EKBE
+  - action: read_table
+    table: MKPF
+    as: MKPF
+  - action: read_table
+    table: MSEG
+    options: ["EBELN = '{ebeln}'"]
+    as: MSEG

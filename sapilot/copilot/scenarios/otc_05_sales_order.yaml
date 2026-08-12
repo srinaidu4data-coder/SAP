@@ -1,0 +1,17 @@
+id: otc_05_sales_order
+title: "OTC-05 Sales order (VBAK/VBAP)"
+description: Sales order header and items.
+params: [vbeln_so]
+steps:
+  - action: read_table
+    table: VBAK
+    options: ["VBELN = '{vbeln_so}'"]
+    as: VBAK
+  - action: read_table
+    table: VBAP
+    options: ["VBELN = '{vbeln_so}'"]
+    as: VBAP
+  - action: tcode
+    tcode: VA03
+  - action: snapshot
+    as: so_screen

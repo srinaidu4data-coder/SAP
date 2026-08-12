@@ -1,0 +1,15 @@
+id: ptp_03_info_record
+title: "PTP-03 Purchasing info record (EINA/EINE)"
+description: Vendor-material price and purchasing org data used on PO.
+params: [matnr, lifnr, ekorg]
+steps:
+  - action: note
+    text: "PTP-03 Info record for material/vendor"
+  - action: read_table
+    table: EINA
+    options: ["MATNR = '{matnr}'", "AND LIFNR = '{lifnr}'"]
+    as: EINA
+  - action: read_table
+    table: EINE
+    options: ["EKORG = '{ekorg}'"]
+    as: EINE

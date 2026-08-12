@@ -1,0 +1,73 @@
+# Destructive action denylist keyed by tier.
+# Patterns match action.target (element id / tcode / logical action name).
+# If a pattern matches for the current tier, the action is NEVER sent to SAP.
+
+version: 1
+
+# Always denied regardless of tier (including T1): audit tripwires
+global_deny:
+  - id: debugger_field_replace
+    patterns:
+      - "**/debugger/**/replace*"
+      - "**/btnChangeValue*"
+      - "debug.replace"
+    reason: "Debugger field-value replacement is permanently disabled (audit tripwire)."
+  - id: mass_change
+    patterns:
+      - "**/MASS*"
+      - "tcode:MASS"
+      - "tcode:XK99"
+      - "tcode:XDxx"
+    reason: "Mass-change transactions are out of scope."
+  - id: sm35_execute
+    patterns:
+      - "tcode:SM35"
+      - "**/btnProcessSession*"
+    reason: "Batch input session execution is out of scope."
+
+tiers:
+  T3_OBSERVE:
+    deny_all_writes: true
+    patterns:
+      - "**/btn*"
+      - "**/btnSTART*"
+      - "**/btnProposal*"
+      - "**/btnPayment*"
+      - "**/btnSave*"
+      - "tcode:F110"
+      - "tcode:FBZP"
+      - "tcode:FBPM"
+      - "applyConfig"
+      - "setBreakpoint"
+    reason: "T3_OBSERVE is read-only."
+
+  T2_SUPERVISED:
+    patterns:
+      # F110 payment execution hard-block outside T1
+      - "**/btnStartImmediately*"
+      - "**/btnSTART*"
+      - "f110.start_immediately"
+      - "f110.payment_run"
+      - "**/chkStartImmediately*"
+      # Payment medium creation without approval
+      - "tcode:FBPM"
+      - "tcode:FDTA"
+      - "f110.payment_medium"
+      # Config commit
+      - "tcode:FBZP"
+      - "**/spro/**/btnSave*"
+      - "tcode:OB*"
+      - "applyConfig"
+      - "setBreakpoint"
+    reason: "T2 requires human approval token for destructive/write actions."
+    # Actions that can proceed only with a valid approval token
+    approval_required:
+      - "f110.proposal"
+      - "**/btnProposal*"
+      - "proposeConfig"
+
+  T1_SANDBOX:
+    patterns:
+      # Still hard-block permanent audit tripwires (covered by global_deny)
+      - "debug.replace"
+    reason: "T1 allows autonomy except permanently disabled capabilities."

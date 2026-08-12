@@ -1,0 +1,21 @@
+id: otc_10_incoming_payment
+title: "OTC-10 Incoming payment readiness (customer + BSID)"
+description: Check customer payment terms and open AR for F-28/F110 customer.
+params: [kunnr, bukrs]
+steps:
+  - action: read_table
+    table: KNB1
+    options: ["KUNNR = '{kunnr}'", "AND BUKRS = '{bukrs}'"]
+    as: KNB1
+  - action: read_table
+    table: BSID
+    options: ["BUKRS = '{bukrs}'", "AND KUNNR = '{kunnr}'"]
+    as: BSID
+  - action: read_table
+    table: KNA1
+    options: ["KUNNR = '{kunnr}'"]
+    as: KNA1
+  - action: tcode
+    tcode: F-28
+  - action: snapshot
+    as: pay_screen

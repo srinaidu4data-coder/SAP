@@ -1,0 +1,9 @@
+id: ptp_04_source_list
+title: "PTP-04 Source list (EORD)"
+description: Fixed vendor for plant/material in validity period.
+params: [matnr, werks]
+steps:
+  - action: read_table
+    table: EORD
+    options: ["MATNR = '{matnr}'", "AND WERKS = '{werks}'"]
+    as: EORD

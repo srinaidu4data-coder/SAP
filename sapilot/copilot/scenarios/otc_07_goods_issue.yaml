@@ -1,0 +1,13 @@
+id: otc_07_goods_issue
+title: "OTC-07 Goods issue / document flow (VBFA/LIKP)"
+description: Confirm delivery issued and document flow SO-DN-Billing.
+params: [vbeln_so, vbeln_dn]
+steps:
+  - action: read_table
+    table: VBFA
+    options: ["VBELV = '{vbeln_so}'"]
+    as: VBFA
+  - action: read_table
+    table: LIKP
+    options: ["VBELN = '{vbeln_dn}'"]
+    as: LIKP

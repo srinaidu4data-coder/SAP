@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "screens": {
+    "BP": {
+      "tcode": "BP",
+      "title": "Seeded catalog BP",
+      "captured_at": "2026-08-12T04:02:26.315804+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER",
+          "name": "PARTNER",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER",
+          "name": "LIFNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "PARTNER": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER",
+        "LIFNR": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "PARTNER",
+          "control_id": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER"
+        },
+        {
+          "label": "LIFNR",
+          "control_id": "wnd[0]/usr/ctxtBUS_JOEL_SEARCH-PARTNER_NUMBER"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "XK03": {
+      "tcode": "XK03",
+      "title": "Seeded catalog XK03",
+      "captured_at": "2026-08-12T04:02:26.316420+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtRF02K-LIFNR",
+          "name": "LIFNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtRF02K-BUKRS",
+          "name": "BUKRS",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtRF02K-EKORG",
+          "name": "EKORG",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "LIFNR": "wnd[0]/usr/ctxtRF02K-LIFNR",
+        "BUKRS": "wnd[0]/usr/ctxtRF02K-BUKRS",
+        "EKORG": "wnd[0]/usr/ctxtRF02K-EKORG",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "LIFNR",
+          "control_id": "wnd[0]/usr/ctxtRF02K-LIFNR"
+        },
+        {
+          "label": "BUKRS",
+          "control_id": "wnd[0]/usr/ctxtRF02K-BUKRS"
+        },
+        {
+          "label": "EKORG",
+          "control_id": "wnd[0]/usr/ctxtRF02K-EKORG"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "MM03": {
+      "tcode": "MM03",
+      "title": "Seeded catalog MM03",
+      "captured_at": "2026-08-12T04:02:26.316916+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtRMMG1-MATNR",
+          "name": "MATNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "MATNR": "wnd[0]/usr/ctxtRMMG1-MATNR",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "MATNR",
+          "control_id": "wnd[0]/usr/ctxtRMMG1-MATNR"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "ME13": {
+      "tcode": "ME13",
+      "title": "Seeded catalog ME13",
+      "captured_at": "2026-08-12T04:02:26.317319+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtEINE-LIFNR",
+          "name": "LIFNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtEINE-MATNR",
+          "name": "MATNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtEINE-EKORG",
+          "name": "EKORG",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "LIFNR": "wnd[0]/usr/ctxtEINE-LIFNR",
+        "MATNR": "wnd[0]/usr/ctxtEINE-MATNR",
+        "EKORG": "wnd[0]/usr/ctxtEINE-EKORG",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "LIFNR",
+          "control_id": "wnd[0]/usr/ctxtEINE-LIFNR"
+        },
+        {
+          "label": "MATNR",
+          "control_id": "wnd[0]/usr/ctxtEINE-MATNR"
+        },
+        {
+          "label": "EKORG",
+          "control_id": "wnd[0]/usr/ctxtEINE-EKORG"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "ME03": {
+      "tcode": "ME03",
+      "title": "Seeded catalog ME03",
+      "captured_at": "2026-08-12T04:02:26.317709+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtMATNR",
+          "name": "MATNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtWERKS",
+          "name": "WERKS",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "MATNR": "wnd[0]/usr/ctxtMATNR",
+        "WERKS": "wnd[0]/usr/ctxtWERKS",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "MATNR",
+          "control_id": "wnd[0]/usr/ctxtMATNR"
+        },
+        {
+          "label": "WERKS",
+          "control_id": "wnd[0]/usr/ctxtWERKS"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "ME53N": {
+      "tcode": "ME53N",
+      "title": "Seeded catalog ME53N",
+      "captured_at": "2026-08-12T04:02:26.318101+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0016/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-BANFN",
+          "name": "BANFN",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "BANFN": "wnd[0]/usr/subSUB0:SAPLMEGUI:0016/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-BANFN",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "BANFN",
+          "control_id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0016/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-BANFN"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "ME23N": {
+      "tcode": "ME23N",
+      "title": "Seeded catalog ME23N",
+      "captured_at": "2026-08-12T04:02:26.318495+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-EBELN",
+          "name": "EBELN",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "EBELN": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-EBELN",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "EBELN",
+          "control_id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_SELECT-EBELN"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "ME21N": {
+      "tcode": "ME21N",
+      "title": "Seeded catalog ME21N",
+      "captured_at": "2026-08-12T04:02:26.318900+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB1:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_TOPLINE-SUPERFIELD",
+          "name": "LIFNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "LIFNR": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB1:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_TOPLINE-SUPERFIELD",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "LIFNR",
+          "control_id": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB1:SAPLMEVIEWS:1100/subSUB1:SAPLMEGUI:1102/ctxtMEPO_TOPLINE-SUPERFIELD"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "MIGO": {
+      "tcode": "MIGO",
+      "title": "Seeded catalog MIGO",
+      "captured_at": "2026-08-12T04:02:26.319297+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/subSUB_FIRSTLINE_REFDOC:SAPLMIGO:2000/ctxtGODYNPRO-PO_NUMBER",
+          "name": "EBELN",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "EBELN": "wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/subSUB_FIRSTLINE_REFDOC:SAPLMIGO:2000/ctxtGODYNPRO-PO_NUMBER",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "EBELN",
+          "control_id": "wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/subSUB_FIRSTLINE_REFDOC:SAPLMIGO:2000/ctxtGODYNPRO-PO_NUMBER"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "MIR4": {
+      "tcode": "MIR4",
+      "title": "Seeded catalog MIR4",
+      "captured_at": "2026-08-12T04:02:26.319701+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/txtRBKPV-BELNR",
+          "name": "BELNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/txtRBKPV-GJAHR",
+          "name": "GJAHR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "BELNR": "wnd[0]/usr/txtRBKPV-BELNR",
+        "GJAHR": "wnd[0]/usr/txtRBKPV-GJAHR",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "BELNR",
+          "control_id": "wnd[0]/usr/txtRBKPV-BELNR"
+        },
+        {
+          "label": "GJAHR",
+          "control_id": "wnd[0]/usr/txtRBKPV-GJAHR"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "FBL1N": {
+      "tcode": "FBL1N",
+      "title": "Seeded catalog FBL1N",
+      "captured_at": "2026-08-12T04:02:26.320288+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtKD_LIFNR-LOW",
+          "name": "LIFNR",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/ctxtKD_BUKRS-LOW",
+          "name": "BUKRS",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "LIFNR": "wnd[0]/usr/ctxtKD_LIFNR-LOW",
+        "BUKRS": "wnd[0]/usr/ctxtKD_BUKRS-LOW",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "LIFNR",
+          "control_id": "wnd[0]/usr/ctxtKD_LIFNR-LOW"
+        },
+        {
+          "label": "BUKRS",
+          "control_id": "wnd[0]/usr/ctxtKD_BUKRS-LOW"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "F110": {
+      "tcode": "F110",
+      "title": "Seeded catalog F110",
+      "captured_at": "2026-08-12T04:02:26.320730+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/txtF110V-LAUFD",
+          "name": "LAUFD",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        },
+        {
+          "id": "wnd[0]/usr/txtF110V-LAUFI",
+          "name": "LAUFI",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "LAUFD": "wnd[0]/usr/txtF110V-LAUFD",
+        "LAUFI": "wnd[0]/usr/txtF110V-LAUFI",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "LAUFD",
+          "control_id": "wnd[0]/usr/txtF110V-LAUFD"
+        },
+        {
+          "label": "LAUFI",
+          "control_id": "wnd[0]/usr/txtF110V-LAUFI"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "SE16N": {
+      "tcode": "SE16N",
+      "title": "Seeded catalog SE16N",
+      "captured_at": "2026-08-12T04:02:26.321187+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtGD-TAB",
+          "name": "TABNAME",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "TABNAME": "wnd[0]/usr/ctxtGD-TAB",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "TABNAME",
+          "control_id": "wnd[0]/usr/ctxtGD-TAB"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    },
+    "SE16": {
+      "tcode": "SE16",
+      "title": "Seeded catalog SE16",
+      "captured_at": "2026-08-12T04:02:26.321610+00:00",
+      "controls": [
+        {
+          "id": "wnd[0]/usr/ctxtDATABROWSE-TABLENAME",
+          "name": "TABNAME",
+          "text": "",
+          "type": "",
+          "screen_left": null,
+          "screen_top": null,
+          "width": null,
+          "height": null,
+          "changeable": false
+        }
+      ],
+      "labels": {
+        "TABNAME": "wnd[0]/usr/ctxtDATABROWSE-TABLENAME",
+        "OK_CODE": "wnd[0]/tbar[0]/okcd"
+      },
+      "fill_order": [
+        {
+          "label": "TABNAME",
+          "control_id": "wnd[0]/usr/ctxtDATABROWSE-TABLENAME"
+        }
+      ],
+      "notes": "Seeded from nav_catalog research playbook"
+    }
+  },
+  "debug": [],
+  "missions": {}
+}

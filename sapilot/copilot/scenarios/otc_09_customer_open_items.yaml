@@ -1,0 +1,13 @@
+id: otc_09_customer_open_items
+title: "OTC-09 Customer open items (BSID) + FBL5N"
+description: AR open items for incoming payment.
+params: [kunnr, bukrs]
+steps:
+  - action: read_table
+    table: BSID
+    options: ["BUKRS = '{bukrs}'", "AND KUNNR = '{kunnr}'"]
+    as: BSID
+  - action: tcode
+    tcode: FBL5N
+  - action: snapshot
+    as: ar_screen

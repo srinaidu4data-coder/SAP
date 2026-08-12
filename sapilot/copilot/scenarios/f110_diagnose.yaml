@@ -1,0 +1,40 @@
+id: f110_diagnose
+title: F110 — Full payment-run diagnostic (knowledge channel)
+description: >
+  No payment posting. Reads FBZP chain, vendor master, open items via RFC (or mock)
+  and optional GUI visit to F110 for visual demo.
+params:
+  - bukrs
+  - method
+  - lifnr
+
+steps:
+  - action: note
+    text: "Knowledge-first diagnosis for payment method readiness"
+
+  - action: read_config
+    kind: fbzp
+    bukrs: "{bukrs}"
+    method: "{method}"
+    as: fbzp
+
+  - action: read_config
+    kind: vendor
+    lifnr: "{lifnr}"
+    bukrs: "{bukrs}"
+    as: vendor
+
+  - action: read_table
+    table: BSIK
+    options:
+      - "BUKRS = '{bukrs}'"
+    rowcount: 50
+    as: open_items
+
+  - action: tcode
+    tcode: F110
+
+  - action: snapshot
+    as: screen_f110
+
+  - action: status

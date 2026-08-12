@@ -1,0 +1,132 @@
+# F110 / ACH reference playbook — complete control flow for the agent
+id: f110_ach
+version: "1.0"
+title: "Automatic Payment Program (F110) — ACH / US bank transfer"
+tcodes:
+  primary: F110
+  config: FBZP
+  medium: FBPM
+  related: [FDTA, FBL1N, XK03, SU53, ST22, SLG1]
+
+parameters:
+  required:
+    - name: run_date
+      screen_hint: "Parameters tab — Run Date (LAUFD)"
+    - name: identification
+      screen_hint: "Parameters tab — Identification (LAUFI)"
+    - name: posting_date
+    - name: docs_entered_up_to
+    - name: company_codes
+    - name: payment_methods
+      example: "A"   # ACH method code — system-specific
+    - name: next_payment_date
+    - name: vendor_range
+
+success_predicate:
+  all:
+    - "REGUV status indicates proposal/payment completed for (LAUFD, LAUFI)"
+    - "REGUP row count > 0"
+    - "exception list empty (or only accepted residual exceptions)"
+  notes: "Never trust traffic-light icon alone — verify via knowledge channel."
+
+hard_fail_predicate:
+  any:
+    - "authorization failure after SU53 captured (do not circumvent)"
+    - "short dump without T1 debug path"
+    - "tier violation"
+
+escalate_predicate:
+  any:
+    - "same message signature failed remediation twice"
+    - "governor novelty loop"
+    - "budget exhausted"
+
+sequence:
+  - step: 1
+    name: parameters
+    actions:
+      - "Fill Run Date, Identification, Posting Date, Docs Entered Up To"
+      - "Company Codes, Payment Methods, Next Payment Date, Vendor range"
+  - step: 2
+    name: free_selection
+    optional: true
+    actions:
+      - "Target specific documents if demo requires"
+  - step: 3
+    name: additional_log
+    critical: true
+    actions:
+      - "Enable Due date check"
+      - "Enable Payment method selection in all cases"
+      - "Enable Line items of the payment documents"
+      - "Set vendor range for log"
+    note: >
+      ALWAYS enable additional log. It is the difference between an agent that can
+      diagnose exclusions and one that cannot.
+  - step: 4
+    name: printout_medium
+    actions:
+      - "Set variant for payment medium program / PMW format"
+  - step: 5
+    name: save_parameters
+    actions:
+      - "Save F110 parameters"
+  - step: 6
+    name: proposal
+    tier: T1_or_T2_with_approval
+    actions:
+      - "Schedule proposal, wait for completion"
+      - "Read proposal log + exception list"
+      - "Read SLG1 application log"
+  - step: 7
+    name: diagnose_remediate
+    loop: true
+    actions:
+      - "For each exception: resolve message, read master/config, remediate per tier"
+  - step: 8
+    name: payment_run
+    tier: T1_SANDBOX_only
+    blocked_outside_t1: true
+    logical_action: f110.payment_run
+    notes: "Start Immediately checkbox hard-blocked outside T1"
+  - step: 9
+    name: verify
+    channel: knowledge
+    checks:
+      - table: REGUV
+      - table: REGUP
+      - table: REGUH
+  - step: 10
+    name: payment_medium
+    optional: true
+    tcode: FBPM
+    tier: T1_or_approved_T2
+
+knowledge_reads_before_execution:
+  - T042
+  - T042B
+  - T042Z
+  - T042E
+  - T042I
+  - T042A
+  - T042Y
+  - T012
+  - T012K
+  - LFA1
+  - LFB1
+  - LFBK
+  - BNKA
+  - BSIK
+
+gui_element_hints:
+  # IDs vary by GUI theme/release — agent must use live snapshot IDs only
+  ok_code: "wnd[0]/tbar[0]/okcd"
+  status_bar: "wnd[0]/sbar"
+  # Logical names mapped at runtime from snapshot text/name search — never invent IDs
+
+demo_deliverable:
+  - before_after_exception_screenshots
+  - additional_log_extract
+  - config_or_master_data_delta
+  - reguv_status_regup_count_fi_docs
+  - elapsed_time_and_remediation_step_count

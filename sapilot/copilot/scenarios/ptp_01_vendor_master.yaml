@@ -1,0 +1,35 @@
+id: ptp_01_vendor_master
+title: "PTP-01 Vendor master check (LFA1/LFB1/LFM1)"
+description: >
+  Procure-to-Pay start: verify vendor exists centrally, company code, and purchasing org.
+  Tables: LFA1, LFB1, LFM1, LFBK.
+params: [lifnr, bukrs, ekorg]
+steps:
+  - action: note
+    text: "PTP-01 Vendor master readiness for {lifnr}"
+  - action: read_table
+    table: LFA1
+    options: ["LIFNR = '{lifnr}'"]
+    as: LFA1
+  - action: read_table
+    table: LFB1
+    options: ["LIFNR = '{lifnr}'", "AND BUKRS = '{bukrs}'"]
+    as: LFB1
+  - action: read_table
+    table: LFM1
+    options: ["LIFNR = '{lifnr}'", "AND EKORG = '{ekorg}'"]
+    as: LFM1
+  - action: read_table
+    table: LFBK
+    options: ["LIFNR = '{lifnr}'"]
+    as: LFBK
+  - action: tcode
+    tcode: XK03
+  - action: set
+    target: RF02K-LIFNR
+    value: "{lifnr}"
+  - action: set
+    target: RF02K-BUKRS
+    value: "{bukrs}"
+  - action: snapshot
+    as: vendor_screen

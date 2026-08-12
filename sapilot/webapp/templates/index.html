@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAPILOT Co-pilot</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">SAPILOT</span>
+      <span class="tag">SAP Co-pilot · local</span>
+    </div>
+    <div id="health" class="pill muted">checking…</div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>1. SAP Logon</h2>
+      <p class="hint">
+        Fills the SAP login screen in order:
+        <strong>Client</strong> (e.g. 100) → <strong>User</strong> → <strong>Password</strong>.
+        Client is never typed into the username field.
+      </p>
+      <label>System (Logon Pad name)
+        <input id="system" value="Vista" />
+      </label>
+      <label>Client <span class="field-note">(mandt — NOT the username)</span>
+        <input id="client" value="100" inputmode="numeric" maxlength="3" />
+      </label>
+      <label>Username <span class="field-note">(SAP user id)</span>
+        <input id="user" value="SV3_000349" autocomplete="username" />
+      </label>
+      <label>Password
+        <input id="password" type="password" value="" placeholder="from vault if empty" autocomplete="current-password" />
+      </label>
+      <div class="row">
+        <button class="primary" id="btnLogin">Login to SAP</button>
+        <button id="btnStatus">Refresh status</button>
+        <button id="btnMouse">Move mouse on SAP</button>
+      </div>
+      <p class="hint">Mouse is ON by default so you can see the cursor move to each field/button.</p>
+      <pre id="statusBox" class="out">—</pre>
+    </section>
+
+    <section class="card">
+      <h2>2. Data tables + debug</h2>
+      <p class="hint">
+        Pulls <strong>multiple database tables</strong> for a scenario, runs readiness checks,
+        then you can execute. This is the Co-pilot “get data → debug → run” loop.
+      </p>
+      <label>Data pack / scenario
+        <select id="pack"></select>
+      </label>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="dataMock" checked /> Mock tables</label>
+        <button class="primary" id="btnGather">Gather tables</button>
+        <button id="btnPrepareRun">Gather + execute</button>
+      </div>
+      <label>Debug symptom (free text)
+        <input id="symptom" value="no goods receipt for PO" />
+      </label>
+      <button id="btnDebug">Debug multi-table</button>
+    </section>
+
+    <section class="card">
+      <h2>3. Drive SAP GUI</h2>
+      <p class="hint">Needs an open SAP session (and scripting enabled for full control).</p>
+      <div class="row">
+        <input id="tcode" value="F110" style="max-width:8rem" />
+        <button id="btnGoto">Go to tcode</button>
+        <button id="btnScreen">Read screen</button>
+      </div>
+      <label>Natural language goal
+        <textarea id="goal" rows="3">Open F110 and set run date 20260812 identification DEMO01</textarea>
+      </label>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="goalMock" checked /> Mock (no real SAP)</label>
+        <button class="primary" id="btnGoal">Run goal (AI)</button>
+      </div>
+      <label>Scenario only (no pre-gather)
+        <select id="scenario"></select>
+      </label>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="scMock" checked /> Mock</label>
+        <button id="btnScenario">Run scenario</button>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <h2>Output</h2>
+      <pre id="out" class="out tall">Ready. Click Login to open Vista and enter credentials.</pre>
+      <h3>Journal (tail)</h3>
+      <pre id="journal" class="out tall dim">—</pre>
+    </section>
+  </main>
+
+  <footer>
+    Local only · http://127.0.0.1:8765 · credentials stay on this machine
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+id: ptp_06_purchase_order
+title: "PTP-06 Purchase order header/items (EKKO/EKPO)"
+description: PO existence, vendor, org, net value, deletion flags, release indicators.
+params: [ebeln]
+steps:
+  - action: read_table
+    table: EKKO
+    options: ["EBELN = '{ebeln}'"]
+    as: EKKO
+  - action: read_table
+    table: EKPO
+    options: ["EBELN = '{ebeln}'"]
+    as: EKPO
+  - action: tcode
+    tcode: ME23N
+  - action: snapshot
+    as: po_screen

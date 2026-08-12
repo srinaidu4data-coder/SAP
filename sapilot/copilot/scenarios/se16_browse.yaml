@@ -1,0 +1,24 @@
+id: se16_browse
+title: SE16N — Browse a table on screen (GUI demo)
+description: >
+  Opens SE16N, enters table name, executes, extracts visible grid.
+  Prefer read_table scenario for reliable bulk data via RFC.
+params:
+  - table
+
+steps:
+  - action: tcode
+    tcode: SE16N
+
+  - action: set
+    target: GD-TAB
+    value: "{table}"
+
+  - action: f8
+    continue_on_error: true
+
+  - action: extract_grid
+    as: grid
+
+  - action: snapshot
+    as: se16_screen

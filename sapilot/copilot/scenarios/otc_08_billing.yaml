@@ -1,0 +1,17 @@
+id: otc_08_billing
+title: "OTC-08 Billing document (VBRK/VBRP)"
+description: Customer invoice from delivery.
+params: [vbeln_bill]
+steps:
+  - action: read_table
+    table: VBRK
+    options: ["VBELN = '{vbeln_bill}'"]
+    as: VBRK
+  - action: read_table
+    table: VBRP
+    options: ["VBELN = '{vbeln_bill}'"]
+    as: VBRP
+  - action: tcode
+    tcode: VF03
+  - action: snapshot
+    as: bill_screen

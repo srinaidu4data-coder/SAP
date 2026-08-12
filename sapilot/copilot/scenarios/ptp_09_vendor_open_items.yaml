@@ -1,0 +1,21 @@
+id: ptp_09_vendor_open_items
+title: "PTP-09 Vendor open items (BSIK) + FBL1N"
+description: AP open items for payment proposal; blocks and payment methods.
+params: [lifnr, bukrs]
+steps:
+  - action: read_table
+    table: BSIK
+    options: ["BUKRS = '{bukrs}'", "AND LIFNR = '{lifnr}'"]
+    as: BSIK
+  - action: tcode
+    tcode: FBL1N
+  - action: set
+    target: KD_LIFNR-LOW
+    value: "{lifnr}"
+  - action: set
+    target: KD_BUKRS-LOW
+    value: "{bukrs}"
+  - action: f8
+    continue_on_error: true
+  - action: extract_grid
+    as: open_item_grid

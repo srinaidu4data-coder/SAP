@@ -1,0 +1,34 @@
+# FI general messages (F0) — payment-run adjacent
+message_class: F0
+version: "1.0"
+
+symptoms:
+  - id: authorization
+    patterns:
+      - "You are not authorized"
+      - "no authorization"
+      - "authorization"
+    checks_in_order:
+      - table: SU53
+        field: auth_object
+        test: "failed authorization"
+        fix: "Report role change — never circumvent"
+    agent_must:
+      - "Run SU53 immediately"
+      - "Parse object, field, value"
+      - "Escalate with concrete role request"
+
+  - id: posting_error
+    patterns:
+      - "Document number"
+      - "posting period"
+      - "account is blocked"
+    checks_in_order:
+      - table: T001B
+        field: period
+        test: "posting period closed"
+        fix: "Open period or change posting date"
+      - table: SKB1
+        field: block
+        test: "G/L blocked"
+        fix: "Unblock G/L if approved"
