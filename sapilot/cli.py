@@ -1055,7 +1055,7 @@ def copilot_login(
 @click.option("--no-rfc", is_flag=True, help="GUI only — skip RFC")
 @click.option("--bukrs", default="1000")
 @click.option("--method", default="A")
-@click.option("--lifnr", default="0000100001")
+@click.option("--lifnr", default=None, help="Vendor number. Omit to auto-discover from LFB1.")
 @click.option("--laufd", default="20260812")
 @click.option("--laufi", default="ACH001")
 @click.option("--table", default="T042E", help="For read_table / se16_browse scenarios")
@@ -1073,7 +1073,7 @@ def copilot_run(
     no_rfc: bool,
     bukrs: str,
     method: str,
-    lifnr: str,
+    lifnr: str | None,
     laufd: str,
     laufi: str,
     table: str,
@@ -1086,7 +1086,10 @@ def copilot_run(
       sapilot copilot run f110_diagnose --connection myecc
       sapilot copilot run f110_parameters --attach
       sapilot copilot run f110_diagnose --mock
+      sapilot copilot run vendor_display --attach --bukrs 1000   (auto-discovers a vendor)
     """
+    from sapilot.copilot.scenarios import load_scenario
+
     cp = _copilot_from_opts(
         mock=mock,
         attach=attach,
@@ -1099,16 +1102,47 @@ def copilot_run(
         no_rfc=no_rfc,
         language=lang,
     )
-    params = {
-        "bukrs": bukrs,
-        "method": method,
-        "lifnr": lifnr,
-        "laufd": laufd,
-        "laufi": laufi,
-        "table": table,
-        "land1": "US",
-    }
     try:
+        scenario_def = load_scenario(scenario_id)
+        needs_lifnr = "lifnr" in (scenario_def.get("params") or [])
+        if needs_lifnr and not lifnr:
+            console.print(
+                f"[dim]No --lifnr given — reading LFB1 to find a vendor in company code "
+                f"{bukrs} on its own…[/dim]"
+            )
+            lfb1 = cp.extract_table("LFB1", rowcount=25)
+            rows = lfb1.get("rows", [])
+            match = next(
+                (r for r in rows if str(r.get("BUKRS", "")).strip() == str(bukrs).strip()),
+                None,
+            ) or (rows[0] if rows else None)
+            if not match or not str(match.get("LIFNR", "")).strip():
+                console.print(
+                    "[red]Auto-discovery failed: LFB1 returned no usable rows. "
+                    "Pass --lifnr explicitly.[/red]"
+                )
+                raise SystemExit(1)
+            lifnr = str(match.get("LIFNR", "")).strip()
+            found_bukrs = str(match.get("BUKRS", "")).strip() or bukrs
+            if found_bukrs != bukrs:
+                console.print(
+                    f"[yellow]No vendor found for company code {bukrs}; using {found_bukrs} "
+                    f"instead (from the row actually returned).[/yellow]"
+                )
+                bukrs = found_bukrs
+            console.print(
+                f"[green]Auto-discovered vendor:[/green] LIFNR={lifnr} BUKRS={bukrs} "
+                f"(channel={lfb1.get('channel')})"
+            )
+        params = {
+            "bukrs": bukrs,
+            "method": method,
+            "lifnr": lifnr or "",
+            "laufd": laufd,
+            "laufi": laufi,
+            "table": table,
+            "land1": "US",
+        }
         console.print(f"[bold]Co-pilot scenario:[/bold] {scenario_id}")
         result = cp.run_scenario(scenario_id, params)
         console.print(
