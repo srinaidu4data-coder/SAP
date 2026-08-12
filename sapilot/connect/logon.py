@@ -416,11 +416,6 @@ def gui_logon(
       Password = password
     Never puts client into the username field.
     """
-    try:
-        import win32com.client  # type: ignore
-    except ImportError as e:
-        raise SapilotConnectionError("pywin32 required: pip install pywin32") from e
-
     client = (client or "").strip()
     user = (user or "").strip()
     password = password or ""
@@ -437,6 +432,11 @@ def gui_logon(
             f"Client and username are both {client!r} — that is almost certainly wrong. "
             "Client is the 3-digit mandt (e.g. 100); username is the SAP user id."
         )
+
+    try:
+        import win32com.client  # type: ignore
+    except ImportError as e:
+        raise SapilotConnectionError("pywin32 required: pip install pywin32") from e
 
     ensure_saplogon_running()
 
