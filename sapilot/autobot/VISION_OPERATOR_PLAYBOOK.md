@@ -11,6 +11,22 @@ This document exists so the same mistakes aren't re-debugged from scratch
 next time. Every rule below was a real, reproduced failure against a live
 SAP system, not a guess.
 
+## The rule that actually mattered most: focus before EVERY keystroke, not just clicks
+
+`SendKeys` goes to whatever window Windows currently considers foreground —
+full stop, no exceptions. A prior click having focused the right window does
+**not** guarantee that's still true by the time the next `type()`/`key()`
+call fires, especially across separate process invocations: a terminal or
+chat app regaining foreground focus between two automation calls is a real,
+observed failure mode, not a hypothetical one — it resulted in an entire
+transaction code being typed into an unrelated application's own input box
+instead of SAP. `Op.type()`, `Op.clear()`, and `Op.key()` all call
+`self.focus()` internally now, every time, with no "already focused, skip
+it" shortcut. That earlier shortcut (added to chase speed) was the direct
+cause of several minutes of silently-failed navigation that looked, from the
+screenshots taken *before* it, like it should have worked. Don't reintroduce
+it.
+
 ## The five rules
 
 1. **Popups are separate windows.** A SAP search-help dialog ("Cost Center
@@ -49,6 +65,17 @@ SAP system, not a guess.
    resulting screenshot. Guessing plausible-looking values (`1000`,
    `400000`) burns exactly as many turns as looking the real one up, except
    half the guesses are wrong.
+
+## Screenshots need focus too, not just clicks
+
+A screenshot is just a capture of whatever pixels are on screen at a given
+rect — if the SAP window isn't actually the topmost window at that screen
+region (another app is covering it, or it lost focus since the last action),
+the capture silently returns that *other* window's content instead, with no
+error. `Op.screenshot()` therefore focuses the window before capturing by
+default. Don't skip this to save time — a screenshot of the wrong window
+looks completely valid and will send the agent confidently down the wrong
+path.
 
 ## Also DPI-aware
 

@@ -125,7 +125,8 @@ class FillStep:
     value: str = ""
     clear: bool = True
     key_after: str | None = None  # "ENTER" | "TAB" | None
-    pace: float = 0.09
+    key_settle: float = 0.3  # bump this for keys that trigger a server round-trip
+    pace: float = 0.05
 
 
 @dataclass
@@ -158,24 +159,40 @@ class Op:
         return int(left + w * rx), int(top + h * ry)
 
     # -- focus ----------------------------------------------------------
-    def focus(self, settle: float = 0.35) -> None:
+    def focus(self, settle: float = 0.18) -> None:
+        """
+        Bring the window to front and give the remote SAP frontend a moment to
+        catch up. NOTE: an earlier version of this skipped SetForegroundWindow
+        entirely when the window was already foreground, to save time — that
+        was wrong. The settle delay isn't about window activation, it's a
+        buffer for the SAP GUI frontend (often talking to a remote backend) to
+        actually be ready for the next input; skipping it caused clicks and
+        keystrokes to silently land on/reach the wrong control. Always pay
+        this small cost; don't skip it to chase speed.
+        """
         focus_window(self.hwnd, settle=settle)
 
     # -- actions --------------------------------------------------------
-    def click(self, rx: float, ry: float, *, settle: float = 0.3) -> tuple[int, int]:
+    def click(self, rx: float, ry: float, *, settle: float = 0.18) -> tuple[int, int]:
         """Direct-jump click (no animated path — see module docstring rule 2)."""
         win32api, win32con, _, _ = _win32()
         self.focus(settle)
         x, y = self._abs(rx, ry)
         win32api.SetCursorPos((x, y))
-        time.sleep(0.08)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-        time.sleep(0.05)
+        time.sleep(0.03)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-        time.sleep(0.15)
+        time.sleep(0.12)
         return x, y
 
-    def type(self, text: str, *, pace: float = 0.09, secret: bool = False) -> None:
+    def type(self, text: str, *, pace: float = 0.05, secret: bool = False) -> None:
+        # SendKeys goes to whatever window the OS currently considers foreground —
+        # which is NOT guaranteed to still be this one, especially across separate
+        # process invocations (a terminal/chat app regaining focus between calls is
+        # exactly how keystrokes silently ended up typed into the wrong window
+        # entirely, not just misplaced on the right screen). Always re-focus before
+        # sending any keys — never assume a prior click's focus is still current.
+        self.focus()
         _, _, win32com, _ = _win32()
         shell = win32com.client.Dispatch("WScript.Shell")
         from sapilot.connect.logon import _escape_sendkeys
@@ -186,21 +203,33 @@ class Op:
         log.debug("typed %r", "***" if secret else text)
 
     def clear(self) -> None:
+        self.focus()
         _, _, win32com, _ = _win32()
         shell = win32com.client.Dispatch("WScript.Shell")
         shell.SendKeys("^a")
-        time.sleep(0.08)
+        time.sleep(0.04)
         shell.SendKeys("{DEL}")
-        time.sleep(0.08)
+        time.sleep(0.04)
 
-    def key(self, name: str, *, settle: float = 0.4) -> None:
+    def key(self, name: str, *, settle: float = 0.3) -> None:
+        self.focus()
         _, _, win32com, _ = _win32()
         win32com.client.Dispatch("WScript.Shell").SendKeys("{" + name + "}")
         time.sleep(settle)
 
-    def screenshot(self, name: str | None = None) -> str:
+    def screenshot(self, name: str | None = None, *, ensure_focus: bool = True) -> str:
+        """
+        Capture this window. ensure_focus=True (default) brings it to front first —
+        a screenshot of a window that isn't actually on top captures whatever IS on
+        top instead (this was a real bug: an unfocused SAP window's rect was
+        captured and it silently returned a screenshot of an unrelated browser tab
+        sitting on top of it). Only pass ensure_focus=False when you've already
+        focused deliberately and stealing focus again would be wrong (rare).
+        """
         from PIL import ImageGrab
 
+        if ensure_focus:
+            self.focus()
         if name is None:
             self._shot_seq[0] += 1
             name = f"shot_{self._shot_seq[0]:03d}"
@@ -225,7 +254,7 @@ class Op:
             if step.value:
                 self.type(step.value, pace=step.pace)
             if step.key_after:
-                self.key(step.key_after)
+                self.key(step.key_after, settle=step.key_settle)
         return self.screenshot(shot_name)
 
 
