@@ -13,19 +13,14 @@ SAP system, not a guess.
 
 ## The rule that actually mattered most: focus before EVERY keystroke, not just clicks
 
-`SendKeys` goes to whatever window Windows currently considers foreground —
-full stop, no exceptions. A prior click having focused the right window does
-**not** guarantee that's still true by the time the next `type()`/`key()`
-call fires, especially across separate process invocations: a terminal or
-chat app regaining foreground focus between two automation calls is a real,
-observed failure mode, not a hypothetical one — it resulted in an entire
-transaction code being typed into an unrelated application's own input box
-instead of SAP. `Op.type()`, `Op.clear()`, and `Op.key()` all call
-`self.focus()` internally now, every time, with no "already focused, skip
-it" shortcut. That earlier shortcut (added to chase speed) was the direct
-cause of several minutes of silently-failed navigation that looked, from the
-screenshots taken *before* it, like it should have worked. Don't reintroduce
-it.
+Keys are scoped to one SAP process (`sapilot.connect.hwnd_input`).
+`WScript.Shell.SendKeys` is forbidden — it types into whichever window
+Windows currently considers foreground. A terminal reclaiming focus between
+two calls typed a tcode into the chat app instead of SAP. `Op.type()` /
+`Op.clear()` / `Op.key()` bind the window's hwnd+pid and refuse to inject
+if that process is not foreground. Transaction navigation uses the real
+command-field control (IAccessible / toolbar edit), never a window-fraction
+click — that path put `/nF110` into Supplier on BP screens.
 
 ## The five rules
 
@@ -41,7 +36,10 @@ it.
    glides toward a target *looks* nicer, but it also passes over whatever
    sits between the old and new position. On one live screen this triggered
    a "quick view" hover card on a Business Partner link that then ate the
-   next several clicks. `Op.click()` jumps directly.
+   next several clicks. `Op.click()` jumps directly. Use `Op.double_click()`
+   (or `Op.click(..., double=True)`) for collapsible headers such as ME51N
+   Item Overview — two spaced `click()` calls do not register as a double-click.
+   Never call `mouse.click(x, y, double=True)` from here; that path animates.
 
 3. **Don't un-maximize the window you just maximized.** `ShowWindow(hwnd,
    SW_RESTORE)` called unconditionally on every focus will silently shrink an
@@ -118,6 +116,9 @@ open_table_browse(op, "CSKS")          # cost center master, one call
   not "Table Name" — same field, different theme. It is auto-focused on
   entry. `F8` doesn't run the query directly; it validates the table name and
   reveals a **"List Output"** button, which is what actually executes it.
+- **ME51N Item Overview** only expands on a genuine OS double-click
+  (`Op.double_click`). A single click, or two `Op.click()` calls spaced
+  far enough apart to miss the Windows double-click window, does nothing.
 - **ME51N item grid:** typing a Material and pressing Enter does *not*
   auto-populate Short Text / Unit / Material Group the way older classic
   ME51N does in some releases — those only appear after Delivery Date and
@@ -126,6 +127,19 @@ open_table_browse(op, "CSKS")          # cost center master, one call
   Account Assignment Category (e.g. `K` = cost center) before the PR can be
   saved — this is normal, not a bug, and the Account Assignment tab only
   appears on the item detail panel *after* the category is set.
+- **ME21N on maximized 3440-wide Belize (APEX-2023):** vendor is
+  `(0.16, 0.165)` — right of Standard PO, not the document number.
+  Org. Data tab `(0.095, 0.238)`, Purch. Org field `(0.195, 0.275)` then
+  TAB → 002 → TAB → 1710. Item Overview chevron `(0.035, 0.48)` when the
+  header is open. Save is F11 (then Ctrl+S). Vendor `USSU-VSF01` is only
+  valid on purch. org **1710**, not 1000.
+- **Human operator (no scripting):** `sapilot operator`. Eyes = screenshot +
+  OCR. Hands = closed-loop mouse. A PO exists only after `operator prove`
+  on EKKO. Status-bar numbers are hints. See `docs/HUMAN_OPERATOR.md`.
+- **PTP create order:** ME51N PR first (BANFN), then ME21N from that PR
+  (EBELN). Do not open MIGO/MIRO until both numbers exist. TG10 on 1710
+  needs account assignment **K** + cost center **1710-10** to save
+  (account determination). PGrp **002**, not 001 (ME59N 001 PRs fail).
 - **A plant belongs to exactly one company code** (`T001W` / `T001K`), and
   every account-assignment object (cost center, WBS, etc.) used on a line
   must belong to *that* company code, not whatever company code your vendor

@@ -124,56 +124,38 @@ class HumanOperator:
         human_pause()
 
     def type_text(self, text: str, *, secret: bool = False) -> None:
-        import win32com.client  # type: ignore
+        from sapilot.connect.hwnd_input import bind_session
 
-        from sapilot.connect.logon import _escape_sendkeys
-
-        shell = win32com.client.Dispatch("WScript.Shell")
-        shell.SendKeys(_escape_sendkeys(text))
+        bind_session().type_text(text, secret=secret)
         self.log_action("type", text="***" if secret else text[:40])
         human_pause(0.08, 0.2)
 
     def press_enter(self) -> None:
-        import win32com.client  # type: ignore
+        from sapilot.connect.hwnd_input import bind_session
 
-        win32com.client.Dispatch("WScript.Shell").SendKeys("{ENTER}")
+        bind_session().send_key("ENTER")
         self.log_action("enter")
         human_pause()
 
     def press_escape(self) -> None:
-        import win32com.client  # type: ignore
+        from sapilot.connect.hwnd_input import bind_session
 
-        win32com.client.Dispatch("WScript.Shell").SendKeys("{ESC}")
+        bind_session().send_key("ESC")
         self.log_action("escape")
         human_pause(0.1, 0.25)
 
     def focus_sap(self) -> int | None:
-        import win32gui  # type: ignore
+        try:
+            from sapilot.connect.hwnd_input import bind_session
+            from sapilot.connect.mouse import focus_window
 
-        from sapilot.connect.mouse import focus_window
-
-        found: list[int] = []
-
-        def cb(h: int, _: Any) -> None:
-            if not win32gui.IsWindowVisible(h):
-                return
-            cls = win32gui.GetClassName(h)
-            title = win32gui.GetWindowText(h)
-            if cls == "SAP_FRONTEND_SESSION" or "SAP Easy Access" in title or title.startswith("SAP"):
-                found.append(h)
-
-        win32gui.EnumWindows(cb, None)
-        if not found:
+            sess = bind_session()
+            focus_window(sess.hwnd)
+            self.log_action("focus_sap", hwnd=sess.hwnd, pid=sess.pid, title=sess.title)
+            return sess.hwnd
+        except Exception as e:
+            self.log_action("focus_sap_fail", error=str(e)[:200])
             return None
-        hwnd = found[0]
-        for h in found:
-            t = win32gui.GetWindowText(h)
-            if "Easy Access" in t:
-                hwnd = h
-                break
-        focus_window(hwnd)
-        self.log_action("focus_sap", hwnd=hwnd, title=win32gui.GetWindowText(hwnd))
-        return hwnd
 
     def start_transaction(self, tcode: str) -> bool:
         """
@@ -182,7 +164,8 @@ class HumanOperator:
         Priority:
           1) COM StartTransaction (never touches Supplier/Vendor fields)
           2) COM ok-code toolbar field only (wnd[0]/tbar[0]/okcd)
-          3) Refuse random form clicks (prevents /nF110 in Supplier)
+          3) hwnd command field (identified control, not a window fraction)
+          4) Fail closed — never type a tcode into a data field
         """
         tcode = (tcode or "").strip().lstrip("/n/N/o/O").strip()
         if not tcode:
@@ -219,22 +202,30 @@ class HumanOperator:
                 except Exception as e2:
                     self.log_action("okcode_com_fail", error=str(e2))
 
-        # Unsafe keyboard fallback REMOVED for tcode entry into arbitrary clicks.
-        # Typing /nXXX after clicking ~12%,6% of window landed in Supplier on BP screens.
-        self.log_action(
-            "okcode_refused_unsafe",
-            tcode=tcode,
-            reason="No scriptable session — will not type tcode into form fields",
-        )
-        return False
+        # Scripting off: type /nTCODE into the real command field (hwnd+pid), never
+        # a window-fraction click. Fail closed if the okcd control is not found.
+        try:
+            from sapilot.connect.hwnd_input import bind_session
+
+            sess = bind_session()
+            sess.start_transaction(tcode)
+            self.log_action("start_transaction_hwnd", tcode=tcode, hwnd=sess.hwnd, pid=sess.pid)
+            return True
+        except Exception as e:
+            self.log_action(
+                "start_transaction_hwnd_fail",
+                tcode=tcode,
+                reason=str(e)[:200],
+            )
+            return False
 
     def type_okcode(self, tcode: str) -> None:
         """Backward-compatible name — always uses safe start_transaction."""
         ok = self.start_transaction(tcode)
         if not ok:
             log.warning(
-                "Could not navigate to %s safely. Enable SAP GUI scripting "
-                "(sapgui/user_scripting=TRUE) so bot uses command field / StartTransaction.",
+                "Could not navigate to %s safely. Need a focused SAP_FRONTEND_SESSION "
+                "and an identifiable command field (or enable sapgui/user_scripting).",
                 tcode,
             )
 
@@ -304,8 +295,8 @@ class HumanOperator:
                 continue
             click_window_point(hwnd, rx, ry)
             human_pause(0.1, 0.25)
-            import win32com.client  # type: ignore
+            from sapilot.connect.hwnd_input import bind_session
 
-            win32com.client.Dispatch("WScript.Shell").SendKeys("^a")
+            bind_session(hwnd=hwnd).clear_field()
             self.type_text(val, secret=secret)
             human_pause()

@@ -28,6 +28,15 @@ sap = [
   "pywin32>=306; platform_system=='Windows'",
   # pyrfc requires NW RFC SDK on PATH — install separately
 ]
+targeting = [
+  # Tiered element-targeting fallback (see sapilot/autobot/targeting.py):
+  # SAP GUI Scripting (core) -> UI Automation -> OCR -> full-vision.
+  "comtypes>=1.4; platform_system=='Windows'",
+  "uiautomation>=2.0; platform_system=='Windows'",
+  "pytesseract>=0.3.10",
+  # pytesseract also requires the Tesseract-OCR binary on PATH — not
+  # pip-installable; the OCR tier degrades gracefully (skips) without it.
+]
 hana = ["hdbcli>=2.20"]
 local-llm = ["llama-cpp-python>=0.2.0"]
 dev = [

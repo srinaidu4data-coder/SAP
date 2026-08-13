@@ -9,6 +9,7 @@ cryptography>=42.0
 rich>=13.7
 click>=8.1
 flask>=3.0
+pytesseract>=0.3.10
 
 # Dev
 pytest>=8.0
@@ -18,3 +19,10 @@ pytest-cov>=5.0
 # pywin32>=306
 # pyrfc  # requires SAP NW RFC SDK
 # hdbcli>=2.20
+
+# Optional: tiered UI targeting fallback (sapilot/autobot/targeting.py)
+# comtypes>=1.4      ; platform_system=='Windows'
+# uiautomation>=2.0  ; platform_system=='Windows'
+# (pytesseract is already in core deps above; also needs the Tesseract-OCR
+# binary on PATH, which is not pip-installable — OCR tier skips gracefully
+# without it)

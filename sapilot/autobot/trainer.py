@@ -23,6 +23,20 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
+# Widget-type prefixes SAP GUI Scripting bakes into a control's Name/Id
+# (ctxtRF02K-LIFNR, txtRF02K-LIFNR, cmbFOO, btnBAR, chkFOO, radFOO, ...).
+# Stripping them recovers the stable semantic field name that survives
+# across SAP versions/personalization even when the surrounding container
+# path (program/screen numbers) changes.
+_WIDGET_PREFIX_RE = re.compile(r"^(ctxt|txt|cmb|btn|chk|rad|lbl|tab|ico)", re.I)
+
+
+def tail_field(control_id: str) -> str:
+    """Extract the stable trailing field name from a full control id/name,
+    e.g. 'wnd[0]/usr/ctxtRF02K-LIFNR' -> 'RF02K-LIFNR'."""
+    tail = (control_id or "").rsplit("/", 1)[-1]
+    return _WIDGET_PREFIX_RE.sub("", tail)
+
 
 def _training_path() -> Path:
     import os
@@ -129,6 +143,73 @@ class TrainingStore:
         return sorted((self.data.get("screens") or {}).keys())
 
 
+def _walk_controls(root: Any, *, max_depth: int = 14) -> list[ControlHit]:
+    """Depth-first dump of a SAP GUI Scripting control tree into ControlHits.
+    Shared by live capture (training) and replay-time fuzzy matching."""
+    controls: list[ControlHit] = []
+
+    def walk(obj: Any, depth: int = 0) -> None:
+        if depth > max_depth:
+            return
+        try:
+            cid = str(getattr(obj, "Id", "") or "")
+            if not cid:
+                return
+            hit = ControlHit(
+                id=cid,
+                name=str(getattr(obj, "Name", "") or ""),
+                text=str(getattr(obj, "Text", "") or "")[:80],
+                type=str(getattr(obj, "Type", "") or getattr(obj, "TypeAsNumber", "") or ""),
+                changeable=bool(getattr(obj, "Changeable", False)),
+            )
+            try:
+                hit.screen_left = int(obj.ScreenLeft)
+                hit.screen_top = int(obj.ScreenTop)
+                hit.width = int(obj.Width)
+                hit.height = int(obj.Height)
+            except Exception:
+                pass
+            controls.append(hit)
+        except Exception:
+            return
+        try:
+            n = int(obj.Children.Count)
+            for i in range(n):
+                walk(obj.Children(i), depth + 1)
+        except Exception:
+            pass
+
+    walk(root)
+    return controls
+
+
+def find_fuzzy_match(
+    recorded_control_id: str,
+    live_controls: list[ControlHit],
+    *,
+    min_score: float = 0.6,
+) -> tuple[ControlHit, float] | None:
+    """
+    Replay-time fallback when a recorded control id doesn't exist on the
+    live screen (different SAP version, personalization layout, or a
+    screen from the same transaction *family* rather than an exact replay
+    target). Matches on the stable trailing field name recovered by
+    tail_field() rather than the full path, since that's the part SAP
+    versions/personalization tend to preserve.
+    """
+    from sapilot.autobot.text_match import best_match
+
+    target = tail_field(recorded_control_id)
+    if not target:
+        return None
+    candidates = [
+        (tail_field(c.id) or c.name, c)
+        for c in live_controls
+        if c.changeable  # never fuzzy-match onto a read-only/display control
+    ]
+    return best_match(target, candidates, min_score=min_score)
+
+
 class BotTrainer:
     """Capture live SAP screen → train labels → use for navigation."""
 
@@ -166,40 +247,7 @@ class BotTrainer:
         except Exception:
             pass
 
-        controls: list[ControlHit] = []
-
-        def walk(obj: Any, depth: int = 0) -> None:
-            if depth > 14:
-                return
-            try:
-                cid = str(getattr(obj, "Id", "") or "")
-                if not cid:
-                    return
-                hit = ControlHit(
-                    id=cid,
-                    name=str(getattr(obj, "Name", "") or ""),
-                    text=str(getattr(obj, "Text", "") or "")[:80],
-                    type=str(getattr(obj, "Type", "") or getattr(obj, "TypeAsNumber", "") or ""),
-                    changeable=bool(getattr(obj, "Changeable", False)),
-                )
-                try:
-                    hit.screen_left = int(obj.ScreenLeft)
-                    hit.screen_top = int(obj.ScreenTop)
-                    hit.width = int(obj.Width)
-                    hit.height = int(obj.Height)
-                except Exception:
-                    pass
-                controls.append(hit)
-            except Exception:
-                return
-            try:
-                n = int(obj.Children.Count)
-                for i in range(n):
-                    walk(obj.Children(i), depth + 1)
-            except Exception:
-                pass
-
-        walk(self.session.FindById("wnd[0]"))
+        controls = _walk_controls(self.session.FindById("wnd[0]"))
 
         # Auto-suggest labels from known id fragments
         labels: dict[str, str] = {}
@@ -320,6 +368,42 @@ class BotTrainer:
         fill_order = scr.get("fill_order") or []
         results = []
 
+        # Lazily captured + cached: only walk the live control tree if a
+        # trained control_id actually misses (avoid the extra COM round trip
+        # on the common case where recorded ids still match exactly).
+        live_controls_cache: list[ControlHit] | None = None
+
+        def set_field_with_fallback(cid: str, val: str, label: str) -> dict[str, Any]:
+            nonlocal live_controls_cache
+            ok = nav.set_field([cid], str(val), label=label)
+            if ok:
+                return {"label": label, "id": cid, "value": val, "ok": True}
+
+            # Exact control_id missed — the recorded screen may have a
+            # different program/screen-number path (SAP version bump,
+            # personalization) while the semantic field itself still
+            # exists. Try to re-ground it by trailing field name instead
+            # of giving up (see find_fuzzy_match / DiLogics-style generalization).
+            if live_controls_cache is None:
+                try:
+                    live_controls_cache = _walk_controls(session.FindById("wnd[0]"))
+                except Exception:
+                    live_controls_cache = []
+            match = find_fuzzy_match(cid, live_controls_cache)
+            if match is None:
+                return {"label": label, "id": cid, "value": val, "ok": False}
+            matched_control, score = match
+            ok2 = nav.set_field([matched_control.id], str(val), label=label)
+            return {
+                "label": label,
+                "id": matched_control.id if ok2 else cid,
+                "value": val,
+                "ok": ok2,
+                "fuzzy_matched": ok2,
+                "fuzzy_score": round(score, 3) if ok2 else None,
+                "recorded_id": cid,
+            }
+
         if fill_order:
             for step in fill_order:
                 label = step.get("label", "")
@@ -331,8 +415,7 @@ class BotTrainer:
                 if str(val).upper().startswith("/N"):
                     results.append({"label": label, "blocked": True, "reason": "tcode in data field"})
                     continue
-                ok = nav.set_field([cid], str(val), label=label)
-                results.append({"label": label, "id": cid, "value": val, "ok": ok})
+                results.append(set_field_with_fallback(cid, str(val), label))
         else:
             for label, val in values.items():
                 cid = labels.get(label) or labels.get(label.upper())
@@ -342,8 +425,7 @@ class BotTrainer:
                 if str(val).upper().startswith("/N"):
                     results.append({"label": label, "blocked": True})
                     continue
-                ok = nav.set_field([cid], str(val), label=label)
-                results.append({"label": label, "id": cid, "value": val, "ok": ok})
+                results.append(set_field_with_fallback(cid, str(val), label))
 
         try:
             nav.vkey(0)

@@ -158,15 +158,31 @@ def click_sap_component(com_obj: Any) -> bool:
 
 
 def focus_window(hwnd: int, *, settle: float = 0.2) -> None:
+    import win32api  # type: ignore
     import win32con  # type: ignore
     import win32gui  # type: ignore
+    import win32process  # type: ignore
 
     try:
         # SW_RESTORE un-maximizes an already-maximized window — only use it to
         # un-minimize, never to "normalize" a window that's already in the state we want.
         if win32gui.GetWindowPlacement(hwnd)[1] == win32con.SW_SHOWMINIMIZED:
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        win32gui.SetForegroundWindow(hwnd)
+    except Exception:
+        pass
+    try:
+        fg = win32gui.GetForegroundWindow()
+        fg_tid, _ = win32process.GetWindowThreadProcessId(fg)
+        cur_tid = win32api.GetCurrentThreadId()
+        if fg_tid and fg_tid != cur_tid:
+            win32process.AttachThreadInput(cur_tid, fg_tid, True)
+            try:
+                win32gui.BringWindowToTop(hwnd)
+                win32gui.SetForegroundWindow(hwnd)
+            finally:
+                win32process.AttachThreadInput(cur_tid, fg_tid, False)
+        else:
+            win32gui.SetForegroundWindow(hwnd)
     except Exception:
         try:
             import win32com.client  # type: ignore

@@ -163,18 +163,47 @@ class ApprovalGate:
         token: str | None,
         *,
         capability_needs_approval: bool,
+        confidence: float | None = None,
+        min_confidence: float = 0.5,
     ) -> None:
-        if tier == Tier.T1_SANDBOX:
-            return
+        """
+        Two independent gates, per shared-autonomy research (confidence alone
+        is a poor detector of high-stakes/novel situations, and risk alone
+        misses "the agent doesn't actually know where it's clicking"):
+
+        1. Risk-classification gate: `capability_needs_approval` — driven by
+           tier + the denylist's static scope list (F110 proposal, config
+           commits, etc). Fires regardless of confidence. Unchanged.
+        2. Confidence gate: if the caller supplies a grounding confidence
+           (e.g. from confidence_from_samples on a vision-predicted click
+           target) below `min_confidence`, treat it as needing approval too —
+           even in T1_SANDBOX, which the risk gate alone never touches. A
+           model that doesn't know where it's clicking shouldn't get to click
+           just because the action itself is routine.
+        """
+        low_confidence = confidence is not None and confidence < min_confidence
+
         if tier == Tier.T3_OBSERVE:
             raise PolicyViolation(
                 f"Action '{action_scope}' forbidden in T3_OBSERVE",
                 tier=tier.value,
                 action=action_scope,
             )
+        if tier == Tier.T1_SANDBOX:
+            if low_confidence and not self.verify(token, action_scope):
+                raise ApprovalRequired(
+                    f"Low grounding confidence ({confidence:.2f} < {min_confidence}) for "
+                    f"'{action_scope}' — requires approval token even in T1_SANDBOX. "
+                    f"Issue via: sapilot approve --scope {action_scope}"
+                )
+            return
         # T2
-        if capability_needs_approval and not self.verify(token, action_scope):
+        if (capability_needs_approval or low_confidence) and not self.verify(token, action_scope):
+            reason = (
+                "T2_SUPERVISED requires approval token"
+                if capability_needs_approval
+                else f"low grounding confidence ({confidence:.2f} < {min_confidence})"
+            )
             raise ApprovalRequired(
-                f"T2_SUPERVISED requires approval token for '{action_scope}'. "
-                f"Issue via: sapilot approve --scope {action_scope}"
+                f"{reason} for '{action_scope}'. Issue via: sapilot approve --scope {action_scope}"
             )

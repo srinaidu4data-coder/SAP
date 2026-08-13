@@ -270,6 +270,91 @@ def run_cmd(
         cp.disconnect()
 
 
+@main.command("consult")
+@click.argument("goal")
+@click.option("--dry-run", is_flag=True, help="Plan + table reads only; no SAP GUI")
+@click.option("--mock", is_flag=True, help="Use built-in mock tables (offline RFC)")
+@click.option("--connection", default=None, help="Vault connection name for live RFC")
+@click.option("--max-steps", default=30, type=int)
+@click.option("--max-llm", default=8, type=int, help="Max stuck-path model calls")
+@click.option("--shot-dir", default=None, type=click.Path())
+@click.option("--approval-token", default=None)
+def consult_cmd(
+    goal: str,
+    dry_run: bool,
+    mock: bool,
+    connection: str | None,
+    max_steps: int,
+    max_llm: int,
+    shot_dir: str | None,
+    approval_token: str | None,
+) -> None:
+    """
+    Functional-consultant operator on live SAP GUI.
+
+    Example: sapilot consult "run end-to-end Treasury"
+
+    Plans the process, reads tables (RFC or SE16N), drives the GUI like a person,
+    and calls OPENAI_API_KEY / XAI_API_KEY only when stuck.
+    """
+    from sapilot.autobot.consult import ConsultLoop
+    from sapilot.connect.logon import load_connection
+    from sapilot.connect.rfc import MockRfcClient, RfcClient
+    from sapilot.demo_data import seed_demo_tables
+
+    rfc: MockRfcClient | RfcClient | None = None
+    if mock:
+        rfc = MockRfcClient()
+        seed_demo_tables(rfc)
+        console.print("[yellow]RFC: mock tables[/yellow]")
+    elif connection:
+        params = load_connection(connection)
+        rfc = RfcClient(params)
+        try:
+            rfc.connect()
+            console.print(f"[green]RFC:[/green] {connection}")
+        except Exception as e:
+            console.print(f"[yellow]RFC unavailable ({e}); GUI SE16N will be used[/yellow]")
+            rfc = None
+
+    loop = ConsultLoop(
+        rfc=rfc,
+        dry_run=dry_run,
+        max_steps=max_steps,
+        max_llm=max_llm,
+        shot_dir=shot_dir,
+        approval_token=approval_token,
+    )
+    result = loop.run(goal)
+    console.print(f"[bold]Process:[/bold] {result.plan.process}")
+    console.print(result.plan.assessment)
+    if result.plan.seed:
+        console.print(
+            "[dim]Seed plan (set OPENAI_API_KEY or XAI_API_KEY for a live process map).[/dim]"
+        )
+    table = Table(title="Steps")
+    table.add_column("ID")
+    table.add_column("Kind")
+    table.add_column("OK")
+    table.add_column("Detail")
+    for s in result.steps:
+        table.add_row(s.id, s.kind, "yes" if s.ok else "no", (s.detail or "")[:80])
+    console.print(table)
+    if result.knowledge:
+        console.print("[bold]Knowledge[/bold]")
+        for name, val in result.knowledge.items():
+            if isinstance(val, list):
+                console.print(f"  {name}: {len(val)} rows")
+            else:
+                console.print(f"  {name}: {val}")
+    console.print(f"Outcome: [bold]{result.outcome}[/bold]")
+    console.print(f"Journal: {result.journal}")
+    if result.error:
+        console.print(f"[red]{result.error}[/red]")
+    if result.outcome not in {"DONE"}:
+        raise SystemExit(1)
+
+
 # ---------------------------------------------------------------------------
 # Co-pilot: login, click, extract tables, run scenarios
 # ---------------------------------------------------------------------------
@@ -1633,6 +1718,152 @@ def super_bot_cmd(offline: bool, no_mouse: bool) -> None:
     console.print(f"Report: {summary.get('report')}")
     if not summary.get("all_success"):
         raise SystemExit(1)
+
+
+@main.group("operator")
+def operator_grp() -> None:
+    """Vision-only human operator for ANY SAP GUI screen. No scripting.
+
+    Examples (ME21N, SE16N) are demos. The product is goto/fill/see/prove
+    on whatever transaction the user names.
+    """
+
+
+@operator_grp.command("see")
+@click.option("--shot-dir", default=None)
+def operator_see(shot_dir: str | None) -> None:
+    """Look at the SAP window: OCR words + status bar + annotated SoM image."""
+    from sapilot.autobot.operator import HumanEyesHands
+
+    op = HumanEyesHands(shot_dir=shot_dir)
+    view = op.see("cli")
+    console.print(f"shot: {view.path}")
+    console.print(f"ocr: {op.capabilities()['ocr'] or 'not installed (pip + tesseract)'}")
+    console.print(f"words: {len(view.words)}")
+    if view.status:
+        console.print(f"status: [{view.status.kind}] {view.status.text}")
+    for w in view.words[:40]:
+        console.print(f"  {w.rx:.3f},{w.ry:.3f}  {w.text}")
+
+
+@operator_grp.command("goto")
+@click.argument("tcode")
+def operator_goto(tcode: str) -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().goto(tcode)
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+
+
+@operator_grp.command("fill")
+@click.option("--label", required=True, help="Visible field label, e.g. Supplier")
+@click.option("--value", required=True)
+@click.option("--enter", is_flag=True)
+@click.option("--side", default="right", type=click.Choice(["right", "left", "below", "on"]))
+def operator_fill(label: str, value: str, enter: bool, side: str) -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().fill_label([label], value, enter=enter, side=side)
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+
+
+@operator_grp.command("click")
+@click.option("--label", required=True)
+@click.option("--side", default="on", type=click.Choice(["right", "left", "below", "on"]))
+def operator_click(label: str, side: str) -> None:
+    """Click a visible label (tab, checkbox-left, field-right)."""
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().click_label([label], side=side)
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+
+
+@operator_grp.command("key")
+@click.argument("name")
+def operator_key(name: str) -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().key(name)
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+
+
+@operator_grp.command("dialog")
+@click.option("--title", required=True, help="SAP dialog title, e.g. Messages")
+@click.option("--click", "button", required=True, help="Visible button, e.g. Edit")
+def operator_dialog(title: str, button: str) -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().click_dialog(title, button)
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+
+
+@operator_grp.command("save-doc")
+def operator_save_doc() -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().save_doc()
+    console.print(f"{'ok' if r.ok else 'fail'}: {r.detail}")
+    console.print("[yellow]Hint only. Run `sapilot operator prove` before claiming a document.[/yellow]")
+
+
+@operator_grp.command("prove")
+@click.option("--table", required=True)
+@click.option("--field", required=True, help="SE16N label e.g. Purchasing Doc")
+@click.option("--value", required=True)
+@click.option("--user", default=None, help="Optional Created By / ERNAM")
+def operator_prove(table: str, field: str, value: str, user: str | None) -> None:
+    from sapilot.autobot.operator import HumanEyesHands
+
+    r = HumanEyesHands().prove_in_table(table, field, value, created_by=user)
+    if r.claimed:
+        console.print(f"[green]PROVEN[/green] {r.detail}")
+    else:
+        console.print(f"[red]NOT CREATED[/red] {r.detail}")
+        raise SystemExit(2)
+
+
+@operator_grp.command("me21n")
+@click.option("--vendor", default="USSU-VSF01")
+@click.option("--material", default="TG10")
+@click.option("--qty", default="10")
+@click.option("--plant", default="1710")
+@click.option("--ekorg", default="1710")
+@click.option("--ekgrp", default="002")
+@click.option("--bukrs", default="1710")
+@click.option("--kostl", default="1710-10")
+def operator_me21n(
+    vendor: str,
+    material: str,
+    qty: str,
+    plant: str,
+    ekorg: str,
+    ekgrp: str,
+    bukrs: str,
+    kostl: str,
+) -> None:
+    """EXAMPLE ONLY: one Standard PO path. Not the product. Use see/goto/fill."""
+    from sapilot.autobot.operator import HumanEyesHands
+    from sapilot.autobot.playbooks_human import run_me21n
+
+    keys = {
+        "vendor": vendor,
+        "material": material,
+        "qty": qty,
+        "plant": plant,
+        "ekorg": ekorg,
+        "ekgrp": ekgrp,
+        "bukrs": bukrs,
+        "kostl": kostl,
+    }
+    out = run_me21n(HumanEyesHands(), keys)
+    for s in out.steps:
+        mark = "ok" if s.ok else "fail"
+        console.print(f"  [{mark}] {s.action}: {s.detail}")
+    if out.ok and out.claimed_doc:
+        console.print(f"[green]PROVEN PO {out.claimed_doc}[/green] {out.proof}")
+    else:
+        console.print(f"[red]NO PO[/red] {out.proof}")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

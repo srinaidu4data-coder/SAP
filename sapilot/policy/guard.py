@@ -78,6 +78,7 @@ class WriteContext:
         value: str = "",
         tcode: str = "",
         logical: str = "",
+        confidence: float | None = None,
     ) -> None:
         """
         Raise PolicyViolation / ApprovalRequired if write not allowed.
@@ -150,10 +151,21 @@ class WriteContext:
                         scope,
                         self.approval_token,
                         capability_needs_approval=True,
+                        confidence=confidence,
                     )
                 return
-            # T1: allow with capability check
+            # T1: allow with capability check, but a low-confidence grounding
+            # still has to clear the confidence gate — routine-action tier
+            # doesn't mean "act on a guess."
             self.tier_ctx.require("gui_write", action=op)
+            if confidence is not None:
+                self.approval.require(
+                    self.tier_ctx.tier,
+                    "gui_write",
+                    self.approval_token,
+                    capability_needs_approval=False,
+                    confidence=confidence,
+                )
             return
 
         if op in {"start_transaction", "tcode", "goto"}:
@@ -170,6 +182,15 @@ class WriteContext:
                     "gui_write",
                     self.approval_token,
                     capability_needs_approval=True,
+                    confidence=confidence,
+                )
+            elif confidence is not None:
+                self.approval.require(
+                    self.tier_ctx.tier,
+                    "gui_write",
+                    self.approval_token,
+                    capability_needs_approval=False,
+                    confidence=confidence,
                 )
             return
 
@@ -231,10 +252,17 @@ def authorize_write(
     value: str = "",
     tcode: str = "",
     logical: str = "",
+    confidence: float | None = None,
 ) -> None:
     """
     THE single choke-point. All SAP write surfaces call this.
     Raises PolicyViolation or ApprovalRequired — never soft-deny.
+
+    `confidence`: optional grounding-confidence score in [0, 1] for the
+    target this write is about to act on (see sapilot.autobot.confidence).
+    Pass it whenever the target coordinate came from a model prediction
+    rather than an exact SAP GUI Scripting control ID — omit it (default)
+    for exact-ID writes, which need no confidence gate at all.
     """
     with _lock:
         ctx = get_write_context()
@@ -243,4 +271,4 @@ def authorize_write(
             # Do not silently bind non-lab defaults into TLS for reuse after bind
             if is_lab_mode():
                 _tls.ctx = ctx
-        ctx.authorize(op, target=target, value=value, tcode=tcode, logical=logical)
+        ctx.authorize(op, target=target, value=value, tcode=tcode, logical=logical, confidence=confidence)

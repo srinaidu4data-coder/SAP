@@ -46,13 +46,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from sapilot.connect.mouse import focus_window, mouse_enabled
+from sapilot.connect.mouse import focus_window
 
 log = logging.getLogger(__name__)
-
-# Command field position is stable across SAP Easy Access / most classic dynpro
-# screens in the modern (Fiori-themed) GUI, as a fraction of the session window.
-COMMAND_FIELD_REL = (0.045, 0.118)
 
 
 def _win32():
@@ -65,37 +61,56 @@ def _win32():
 
 
 def find_sap_session() -> int:
-    """Locate the main SAP_FRONTEND_SESSION window. Raises if none is open."""
-    _, _, _, win32gui = _win32()
-    found: list[int] = []
+    """Locate one SAP_FRONTEND_SESSION (focused, or the only one). Fail closed if ambiguous."""
+    from sapilot.connect.hwnd_input import bind_session
 
-    def cb(h: int, _: Any) -> None:
-        if win32gui.IsWindowVisible(h) and win32gui.GetClassName(h) == "SAP_FRONTEND_SESSION":
-            found.append(h)
+    return bind_session().hwnd
 
-    win32gui.EnumWindows(cb, None)
-    if not found:
-        raise RuntimeError(
-            "No SAP_FRONTEND_SESSION window found. Is a system logged on in SAP Logon?"
-        )
-    return found[-1]
+
+_SAP_DLG_CLASS = "#32770"
+_NOT_SAP_TITLE = (
+    "grok",
+    "powershell",
+    "windows powershell",
+    "command prompt",
+    "visual studio",
+    "chrome",
+    "brave",
+    "whatsapp",
+    "notepad",
+    "file explorer",
+)
 
 
 def find_popup(title_substr: str, *, exclude: int | None = None) -> int | None:
     """
     Locate a modal SAP popup (search-help, message box, Exit Document, etc.) by a
     substring of its title. These are separate top-level windows — see module
-    docstring rule 1. Returns the most recently created match, or None.
+    docstring rule 1. Only #32770 dialogs; the agent console title must not match.
+    Returns the most recently created match, or None.
     """
     _, _, _, win32gui = _win32()
     found: list[int] = []
+    needle = (title_substr or "").lower()
 
     def cb(h: int, _: Any) -> None:
         if h == exclude or not win32gui.IsWindowVisible(h):
             return
-        t = win32gui.GetWindowText(h)
-        if title_substr.lower() in t.lower():
-            found.append(h)
+        try:
+            cls = win32gui.GetClassName(h)
+        except Exception:
+            return
+        if cls != _SAP_DLG_CLASS:
+            return
+        t = win32gui.GetWindowText(h) or ""
+        low = t.lower()
+        if any(bad in low for bad in _NOT_SAP_TITLE):
+            return
+        if needle and needle not in low:
+            return
+        if t.strip() in {"SAP Logon 8.10", "SAP Logon"}:
+            return
+        found.append(h)
 
     win32gui.EnumWindows(cb, None)
     return found[-1] if found else None
@@ -173,66 +188,84 @@ class Op:
         focus_window(self.hwnd, settle=settle)
 
     # -- actions --------------------------------------------------------
-    def click(self, rx: float, ry: float, *, settle: float = 0.18) -> tuple[int, int]:
+    def _jump_cursor(self, x: int, y: int, *, tolerance_px: int = 3, retries: int = 2) -> None:
+        """
+        Move the cursor, then read it back with GetCursorPos and confirm it
+        actually landed where we told it to before any mouse_event fires.
+
+        This is the visual-servoing "verify after act" step, not a formality:
+        SetCursorPos silently no-ops or lands wrong exactly when the coordinate
+        frame it was computed against is already stale — a DPI-scaling
+        mismatch, a window that got un-maximized mid-sequence, or (for popups)
+        a rect computed against the wrong top-level window. All three are bugs
+        this project has shipped and fixed once already; catching the drift
+        here stops a fourth variant from silently misclicking instead of
+        raising where the mistake is obvious.
+        """
+        win32api, _, _, _ = _win32()
+        for attempt in range(retries + 1):
+            win32api.SetCursorPos((x, y))
+            actual_x, actual_y = win32api.GetCursorPos()
+            if abs(actual_x - x) <= tolerance_px and abs(actual_y - y) <= tolerance_px:
+                return
+            log.warning(
+                "cursor drift: wanted (%d,%d) got (%d,%d) attempt=%d",
+                x, y, actual_x, actual_y, attempt,
+            )
+            time.sleep(0.05)
+        from sapilot.exceptions import GroundingError
+
+        raise GroundingError(
+            f"Cursor would not settle at ({x},{y}) after {retries + 1} attempts "
+            f"(landed at ({actual_x},{actual_y}) — off by "
+            f"{abs(actual_x - x)},{abs(actual_y - y)}px). Coordinate frame is stale "
+            "(DPI scale, window restore, or wrong-window rect) — re-ground before retrying."
+        )
+
+    def click(
+        self, rx: float, ry: float, *, settle: float = 0.18, double: bool = False
+    ) -> tuple[int, int]:
         """Direct-jump click (no animated path — see module docstring rule 2)."""
         win32api, win32con, _, _ = _win32()
         self.focus(settle)
         x, y = self._abs(rx, ry)
-        win32api.SetCursorPos((x, y))
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-        time.sleep(0.03)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        self._jump_cursor(x, y)
+        for i in range(2 if double else 1):
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(0.03)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            if double and i == 0:
+                time.sleep(0.06)
         time.sleep(0.12)
         return x, y
 
     def double_click(self, rx: float, ry: float, *, settle: float = 0.18) -> tuple[int, int]:
-        """
-        Some collapsible section headers (e.g. ME51N's "Item Overview") only
-        expand on a genuine double-click — a single click, or two single clicks
-        separated by enough time to not register as one, does nothing visible.
-        """
-        win32api, win32con, _, _ = _win32()
-        self.focus(settle)
-        x, y = self._abs(rx, ry)
-        win32api.SetCursorPos((x, y))
-        for _ in range(2):
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-            time.sleep(0.03)
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-            time.sleep(0.06)
-        time.sleep(0.12)
-        return x, y
+        """Real OS double-click; required for some SAP collapsible headers that ignore a single click."""
+        return self.click(rx, ry, settle=settle, double=True)
 
     def type(self, text: str, *, pace: float = 0.05, secret: bool = False) -> None:
-        # SendKeys goes to whatever window the OS currently considers foreground —
-        # which is NOT guaranteed to still be this one, especially across separate
-        # process invocations (a terminal/chat app regaining focus between calls is
-        # exactly how keystrokes silently ended up typed into the wrong window
-        # entirely, not just misplaced on the right screen). Always re-focus before
-        # sending any keys — never assume a prior click's focus is still current.
-        self.focus()
-        _, _, win32com, _ = _win32()
-        shell = win32com.client.Dispatch("WScript.Shell")
-        from sapilot.connect.logon import _escape_sendkeys
+        # Keys are scoped to this SAP hwnd/pid. OS-wide SendKeys is forbidden —
+        # a terminal reclaiming focus used to swallow the tcode into the wrong app.
+        del pace  # WM_SETTEXT / SendInput is instant; pace kept for call-site compat
+        from sapilot.connect.hwnd_input import bind_window
 
-        for ch in text:
-            shell.SendKeys(_escape_sendkeys(ch))
-            time.sleep(pace)
-        log.debug("typed %r", "***" if secret else text)
+        bind_window(self.hwnd).type_text(text, secret=secret)
 
     def clear(self) -> None:
-        self.focus()
-        _, _, win32com, _ = _win32()
-        shell = win32com.client.Dispatch("WScript.Shell")
-        shell.SendKeys("^a")
-        time.sleep(0.04)
-        shell.SendKeys("{DEL}")
-        time.sleep(0.04)
+        from sapilot.connect.hwnd_input import bind_window
+
+        bind_window(self.hwnd).clear_field()
 
     def key(self, name: str, *, settle: float = 0.3) -> None:
-        self.focus()
-        _, _, win32com, _ = _win32()
-        win32com.client.Dispatch("WScript.Shell").SendKeys("{" + name + "}")
+        from sapilot.connect.hwnd_input import bind_window
+
+        bind_window(self.hwnd).send_key(name)
+        time.sleep(settle)
+
+    def save(self, *, settle: float = 1.4) -> None:
+        from sapilot.connect.hwnd_input import bind_window
+
+        bind_window(self.hwnd).save()
         time.sleep(settle)
 
     def screenshot(self, name: str | None = None, *, ensure_focus: bool = True) -> str:
@@ -282,11 +315,10 @@ class Op:
 
 
 def goto_transaction(op: Op, tcode: str, *, shot_name: str | None = None) -> str:
-    """Click the command field, enter /nTCODE, and return a screenshot of the result."""
-    op.click(*COMMAND_FIELD_REL)
-    op.clear()
-    op.type(f"/n{tcode.upper()}", pace=0.08)
-    op.key("ENTER", settle=1.3)
+    """Command-field navigation via the real okcd control — never a window fraction."""
+    from sapilot.connect.hwnd_input import bind_session
+
+    bind_session(hwnd=op.hwnd).start_transaction(tcode)
     return op.screenshot(shot_name)
 
 
@@ -300,17 +332,28 @@ def open_table_browse(op: Op, table: str, *, shot_name: str | None = None) -> st
     This is the "go back to tables" reflex from module docstring rule 5: reach
     for this the FIRST time a field rejects a value, not after several guesses.
     """
-    op.click(*COMMAND_FIELD_REL)
-    op.clear()
-    op.type("/nSE16N", pace=0.08)
-    op.key("ENTER", settle=1.2)
-    # Data base field is auto-focused on a fresh SE16N screen — no click needed.
-    for ch in table.upper():
-        op.type(ch, pace=0.11)
-    op.key("F8", settle=1.0)
-    # "List Output" button appears bottom-left once the table name validates.
-    op.click(0.0275, 0.961, settle=0.3)
-    time.sleep(1.2)
+    from sapilot.connect.hwnd_input import bind_session
+
+    sess = bind_session(hwnd=op.hwnd)
+    sess.start_transaction("SE16N")
+    time.sleep(0.6)
+    db = sess.find_content_edit()
+    name = table.strip().upper()
+    if db:
+        import win32gui  # type: ignore
+
+        l, t, r, b = win32gui.GetWindowRect(db)
+        pl, pt, pr, pb = op.rect()
+        pw, ph = max(pr - pl, 1), max(pb - pt, 1)
+        op.click(((l + r) / 2 - pl) / pw, ((t + b) / 2 - pt) / ph, settle=0.25)
+    sess.clear_field()
+    sess.type_text(name)
+    # Click the description area to dismiss SE16N typeahead (TAB alone can accept T001HA / TRLT_FLOWA).
+    op.click(0.55, 0.22, settle=0.25)
+    op.key("F8", settle=1.6)
+    # "List Output" lives bottom-left after the table name validates.
+    op.click(0.035, 0.955, settle=0.35)
+    time.sleep(1.8)
     return op.screenshot(shot_name)
 
 
