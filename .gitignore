@@ -28,9 +28,19 @@ runtime/nwrfcsdk/
 runtime/models/
 *.gguf
 
+# Local Word-build helper (not the briefing itself)
+scripts/_docx_build/
+node_modules/
+.cache/
+dist/
+
 # OS / IDE
 Thumbs.db
 .DS_Store
 .idea/
 .vscode/
 *.swp
+.grok/
+.docx-tmp/
+*~$*.docx
+data/kb/*.db

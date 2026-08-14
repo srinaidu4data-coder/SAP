@@ -26,6 +26,9 @@ sapilot operator prove --table <TAB> --field <label> --value <key> [--user <ERNA
 `sapilot operator me21n` is a **sample script** that happens to create a
 purchase order. It is not the product.
 
+Display-only cycle walks live under `sapilot display walk <cycle>` — see
+`docs/DISPLAY_WING.md`. Create t-codes are refused there.
+
 ## Eyes
 
 Tesseract on this machine:

@@ -191,18 +191,44 @@ def parse_status_bar(raw: str) -> StatusRead:
     return StatusRead(raw=text, kind=kind, text=body, docno=docno)
 
 
-def crop_status_bar(image: Any) -> Any:
+def crop_status_bar(image: Any, top_frac: float = 0.88) -> Any:
     from PIL import Image
 
     if not isinstance(image, Image.Image):
         image = Image.open(image)
     w, h = image.size
-    top = int(h * 0.935)
+    top = int(h * max(0.80, min(0.97, top_frac)))
     return image.crop((0, top, w, h))
 
 
+_STATUS_HINTS = (
+    "does not exist",
+    "check the name",
+    "no values found",
+    "not authorized",
+    "no authorization",
+    "invalid ok",
+    "is not created in language",
+)
+
+
 def read_status(image: Any) -> StatusRead:
-    return parse_status_bar(ocr_text(crop_status_bar(image)))
+    """OCR the bottom strip more than once. Belize error text is small and red."""
+    texts: list[str] = []
+    for frac in (0.88, 0.93):
+        try:
+            texts.append(ocr_text(crop_status_bar(image, frac)))
+        except Exception:
+            continue
+    if not texts:
+        return parse_status_bar("")
+
+    def _score(t: str) -> tuple[int, int]:
+        low = (t or "").lower()
+        return (int(any(h in low for h in _STATUS_HINTS)), len(t or ""))
+
+    best = max(texts, key=_score)
+    return parse_status_bar(best)
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +395,24 @@ def look(hwnd: int, shot_dir: str, name: str = "see") -> ScreenView:
 
     img = Image.open(path)
     words = ocr_words(img)
-    status = parse_status_bar(ocr_text(crop_status_bar(img)))
+    status = read_status(img)
+    # Full-window OCR often misses the red strip. Put the status text on the
+    # view so every caller that joins words still sees "does not exist".
+    if status and status.text:
+        w0, h0 = img.size
+        words = list(words)
+        words.append(
+            WordBox(
+                text=status.text,
+                x=8,
+                y=int(h0 * 0.96),
+                w=max(40, w0 - 16),
+                h=max(12, int(h0 * 0.03)),
+                conf=99.0,
+                img_w=w0,
+                img_h=h0,
+            )
+        )
     view = ScreenView(path=path, width=img.size[0], height=img.size[1], words=words, status=status)
     _annotate(view, Path(shot_dir) / f"{name}_som.png")
     return view

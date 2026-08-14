@@ -50,6 +50,36 @@ LIVE = {
     "mvke": 1723,
     "knkk": 0,
     "page_vbak_usd": 481000,
+    # Product costing / ML — Number of Entries, analysis_copc/LIVE_COUNTS.json
+    "tck03": 74,
+    "tck05": 37,
+    "tck14": 121,
+    "tck31": 1,
+    "tckh1": 3590,
+    "keko": 3472,
+    "keph": 7647,
+    "ckis": 8444,
+    "ckhs": 3241,
+    "ckmlhd": 2594,
+    "ckmlpp": 45572,
+    "ckmlcr": 85131,
+    "ckmlpr": 4417,
+    "t001k": 1004,
+    "mbew": 3071,
+    "qbew": 0,
+    "ebew": 89,
+    "aufk": 2950,
+    "afko": 2479,
+    "afpo": 1021,
+    "resb": 10666,
+    "afru": 1838,
+    "cosp": 26953,
+    "coep": 38507,
+    "cskb": 10732,
+    "csks": 1623,
+    "tkkaa": 35,
+    "tka01": 591,
+    "tka02": 837,
 }
 
 T161 = [
@@ -180,6 +210,16 @@ TCODES = [
     ("ML81N", "Service entry", "PTP", "CATALOG"),
     ("VL31N", "Inbound", "PTP", "CATALOG"),
     ("FB50", "Journal", "R2R", "LIVE open 1710"),
+    ("CK11N", "Single cost estimate", "CO-PC", "CATALOG — 3,472 KEKO LIVE"),
+    ("CK13N", "Display estimate", "CO-PC", "CATALOG"),
+    ("CK40N", "Costing run", "CO-PC", "CATALOG"),
+    ("CK24", "Mark / release", "CO-PC", "CATALOG"),
+    ("CKM3N", "ML price analysis", "CO-PC", "CATALOG — 2,594 CKMLHD LIVE"),
+    ("CKMLCP", "Actual costing cockpit", "CO-PC", "CATALOG — 85,131 CKMLCR LIVE"),
+    ("CO03", "Display prod order", "PP", "CATALOG until AUFK"),
+    ("KKS1", "Collective variance", "CO-PC", "CATALOG"),
+    ("KKAX", "WIP calculate", "CO-PC", "CATALOG"),
+    ("OKKN", "Costing variant", "CO-PC", "CATALOG — 74 TCK03 LIVE"),
 ]
 
 BAPIS = [
@@ -206,6 +246,10 @@ BAPIS = [
     ("BAPI_INCOMINGINVOICE_GETDETAIL", "PTP", "CATALOG"),
     ("BAPI_SALESORDER_SIMULATE", "OTC", "CATALOG"),
     ("BAPI_MATERIAL_GET_DETAIL", "ALL", "CATALOG"),
+    ("BAPI_COSTESTIMATE_GETLIST", "CO-PC", "CATALOG — 3,472 KEKO LIVE"),
+    ("BAPI_COSTESTIMATE_ITEMIZATION", "CO-PC", "CATALOG — 8,444 CKIS LIVE"),
+    ("BAPI_PRODORD_GET_DETAIL", "PP", "CATALOG until AUFK counted"),
+    ("BAPI_COSTCENTER_GETLIST", "CO", "CATALOG until CSKS counted"),
     ("BAPI_TRANSACTION_COMMIT", "ALL", "CATALOG"),
     ("BAPI_TRANSACTION_ROLLBACK", "ALL", "CATALOG"),
 ]
@@ -236,6 +280,11 @@ BADIS = [
     ("INVOICE_UPDATE", "IR update", "RBKP"),
     ("FI_TRANS_DATE_DERIVE", "FI date", "UK DD.MM.YYYY"),
     ("BADI_ACC_DOCUMENT", "FI post", "FB50"),
+    ("DATA_EXTENSION_CK", "CK11N/CK40N extend", "3,472 KEKO — extra fields"),
+    ("CK_KALAMATCON2_CI", "costing run selection", "CK40N material list"),
+    ("WORKORDER_UPDATE", "prod order save", "AUFK/AFKO — pending census"),
+    ("WORKORDER_GOODSMVT", "order goods mvt", "AUFM / 101 on order"),
+    ("CKML_UPDATE", "ML update", "85,131 CKMLCR periods"),
 ]
 
 ACTORS = [
@@ -526,6 +575,16 @@ working 2017–18 path and the TG10 experiment.</p>
         ("Popup hwnd", "Messages vs grok window", "IT"),
         ("AGR_USERS 500", "roles exist; FTR_CREATE denied", "Security"),
         ("Treasury 1710", "VTBFHA vs MM 1710 same CoCd", "TRM/FI"),
+        ("STPRS zero / old", "KEKO latest KADKY not FREIG → MBEW-STPRS stale → PPV at 101", "CO-PC"),
+        ("CK40N 10k error log", "MARC-NCOST / missing BOM / missing routing → 3,472 KEKO still has gaps", "CO-PC"),
+        ("CKM3 not-distributed", "CKMLCP not closed → CKMLPP qty vs CKMLCR value", "CO-PC"),
+        ("Activity price 0", "COST empty → labor component 0 → F2 margin lie", "CO-PC"),
+        ("OBYC PRD missing", "MBEW-BKLAS → T030 PRD → GR 101 dump (second reason besides TG10)", "FI/CO"),
+        ("74 costing variants", "TCK03 F4 sprawl — same disease as 376 TVAK", "CO-PC"),
+        ("1 costing sheet", "TCK31=1 → overhead almost unused → CKIS missing OH", "CO-PC"),
+        ("ML years of periods", "45,572 CKMLPP / 2,594 CKMLHD ≈ 17.6 periods — close calendar is live", "CO-PC"),
+        ("TG10 as manufactured", "PD third-party costed as in-house → CK11N error or purchase-only lie", "CO-PC/MM"),
+        ("1710 F2 COGS", "5,982 bills use STPRS from this stack — wrong estimate = wrong margin", "CO-PC/SD"),
     ]
     for i, (name, hop, team) in enumerate(incidents, 1):
         pages.append(p(
@@ -569,6 +628,107 @@ Process change: restrict F4 to groups that have LFM1 + EORD on 1710.</p>
 {hops_for("T024", str(i))}
 {support_for(f"EKGRP-slot-{i}")}
 {change_for(f"EKGRP-slot-{i}")}
+""",
+        ))
+
+    # Product costing / ML encyclopedia from LIVE Number of Entries
+    pages.append(p(
+        "1900 · CO-PC thesis · this is a live costing factory, not a demo CK11N",
+        f"""
+<p>Number of Entries (not 500 lists): TCK03 <b>{LIVE['tck03']}</b> costing variants,
+TCK05 <b>{LIVE['tck05']}</b> valuation variants, TCK14 <b>{LIVE['tck14']}</b> partner
+components, TCK31 <b>{LIVE['tck31']}</b> costing sheet, TCKH1 <b>{LIVE['tckh1']:,}</b>
+component texts, KEKO <b>{LIVE['keko']:,}</b> estimates, KEPH <b>{LIVE['keph']:,}</b>
+splits, CKIS <b>{LIVE['ckis']:,}</b> itemizations, CKHS <b>{LIVE['ckhs']:,}</b>
+unit-cost headers, CKMLHD <b>{LIVE['ckmlhd']:,}</b> ML materials, CKMLPP
+<b>{LIVE['ckmlpp']:,}</b> period quantities, CKMLCR <b>{LIVE['ckmlcr']:,}</b>
+period values, CKMLPR <b>{LIVE['ckmlpr']:,}</b> prices, T001K <b>{LIVE['t001k']:,}</b>
+valuation areas, MBEW <b>{LIVE['mbew']:,}</b> material valuations.</p>
+<p><b>Thesis:</b> Material Ledger is on and has been closed for years
+({LIVE['ckmlpp']:,} / {LIVE['ckmlhd']:,} ≈ 17.6 periods per material). Standard
+cost ran (3,472 KEKO). Overhead almost did not (TCK31 = 1). Variant F4 is
+bloated (74) the same way TVAK is bloated (376). 1710 F2 billing (5,982) takes
+COGS from this stack — a stale STPRS is a margin lie, not a costing curiosity.</p>
+<p><b>Hops:</b> TCK03 → TCK05 strategy → KEKO/CKIS → CK24 → MBEW-STPRS →
+OBYC BSX/GBB/PRD → CKMLHD/PP/CR → CKMLCP close → KEPH → VBRK F2 / ACDOCA.</p>
+<p><b>Do not:</b> cost TG10 as manufactured. Do not treat 500 SE16N rows as
+the population. Do not release 74 variants into F4 for clerks.</p>
+""",
+    ))
+
+    for i in range(1, LIVE["tck03"] + 1):
+        pages.append(p(
+            f"{1900 + i:04d} · TCK03 costing variant slot {i}/{LIVE['tck03']}",
+            f"""
+<p>LIVE TCK03 = <b>{LIVE['tck03']}</b>. Slot {i} is one KLVAR (CK11N/CK40N).
+Fields: TCK03-KLVAR, TCK03-BWVAR → TCK05 ({LIVE['tck05']} valuation variants),
+TCK03-KALKA costing type, TCK03-UEBER transfer control.</p>
+<p>Used? Unknown until a 1710 KEKO filter names the variant. Process change:
+restrict F4 to the variants that have KEKO-FREIG on plant 1710. Same disease
+as 139 T161 / 376 TVAK — configured ≠ used.</p>
+<p>Ticket if this slot is picked by accident: CK40N error log, or a legal vs
+group cost mixed into MBEW-STPRS, then PPV explosion at GR 101.</p>
+{hops_for("TCK03", str(i))}
+{support_for(f"KLVAR-{i}")}
+{change_for(f"KLVAR-{i}")}
+""",
+        ))
+
+    for i in range(1, LIVE["tck05"] + 1):
+        pages.append(p(
+            f"{1980 + i:04d} · TCK05 valuation variant slot {i}/{LIVE['tck05']}",
+            f"""
+<p>LIVE TCK05 = <b>{LIVE['tck05']}</b>. Slot {i} is a price-source strategy
+(PO / info record / planned price 1–3 / movement). TCK14 partner components
+= <b>{LIVE['tck14']}</b> — intercompany markup lives here.</p>
+<p>Wrong strategy → purchased material costed at planned price 1 (zero) while
+EINE has a real PO price → STPRS lie → F2 margin lie.</p>
+{hops_for("TCK05", str(i))}
+{support_for(f"BWVAR-{i}")}
+{change_for(f"BWVAR-{i}")}
+""",
+        ))
+
+    copc_tables = [
+        ("KEKO", LIVE["keko"], "Cost estimate header. Filter 1710/WERKS next. FREIG = released to MBEW-STPRS."),
+        ("KEPH", LIVE["keph"], "Cost component split. This is what COPA/ACDOCA should inherit for F2 margin."),
+        ("CKIS", LIVE["ckis"], "Itemization: BOM (M), activity (E), subcontract (L). TG10 should not look like M."),
+        ("CKHS", LIVE["ckhs"], "Unit-costing header — additive / unit cost path beside quantity structure."),
+        ("CKMLHD", LIVE["ckmlhd"], "ML header. 2,594 vs MBEW 3,071 ⇒ most valuated materials are in the ledger."),
+        ("CKMLPP", LIVE["ckmlpp"], "ML period qty. 45,572 / 2,594 ≈ 17.6 periods — years of close, not a pilot."),
+        ("CKMLCR", LIVE["ckmlcr"], "ML period value / PUP. Not-distributed tickets start here vs CKMLPP."),
+        ("CKMLPR", LIVE["ckmlpr"], "ML prices. PUP vs S after CKMLCP."),
+        ("T001K", LIVE["t001k"], "Valuation areas. MLBWA/MLBWI = ML on/off per area. 1,004 is a landscape, not one plant."),
+        ("MBEW", LIVE["mbew"], "VPRSV S vs V, STPRS, VERPR, BKLAS → OBYC. 3,071 materials have a price."),
+        ("TCKH1", LIVE["tckh1"], "Cost component texts — 3,590. Structure exists; TCK31=1 says overhead barely used."),
+        ("TCK14", LIVE["tck14"], "Partner cost components — 121. Intercompany / transfer-price leaf."),
+        ("TCK31", LIVE["tck31"], "Costing sheet = 1. Overhead is a ghost. Activity + material dominate CKIS."),
+        ("QBEW", LIVE["qbew"], "Project stock = 0. Do not design PS-stock costing. EBEW is the special-stock leaf."),
+        ("EBEW", LIVE["ebew"], "Sales-order stock = 89. MTO exists. Cost those 89 on the sales-order, not as unrestricted."),
+        ("AUFK", LIVE["aufk"], "2,950 orders. Not a sales-only book. Includes PP + internal/CO orders."),
+        ("AFKO", LIVE["afko"], "2,479 PP headers. Factory ran."),
+        ("AFPO", LIVE["afpo"], "1,021 PP items vs 2,479 headers — many headers have no item (or mixed order categories)."),
+        ("RESB", LIVE["resb"], "10,666 reservations. BOM exploded onto orders. Subcon/TG10 cousin lives here."),
+        ("AFRU", LIVE["afru"], "1,838 confirmations. Yield/scrap/activity posted. Variance tickets start here."),
+        ("COSP", LIVE["cosp"], "26,953 CO totals. Actual cost objects are populated."),
+        ("COEP", LIVE["coep"], "38,507 CO line items. This is the P&L grain, not KEKO."),
+        ("CSKB", LIVE["cskb"], "10,732 cost elements. Earlier 'CSKB empty' guess was wrong."),
+        ("CSKS", LIVE["csks"], "1,623 cost centers. Activity price (COST/KP26) has somewhere to sit."),
+        ("TKKAA", LIVE["tkkaa"], "35 RA/WIP check rows. KKAX/KKAO is configured."),
+        ("TKA01", LIVE["tka01"], "591 controlling areas — same F4 disease as 376 TVAK. Do not pick a random KOKRS."),
+        ("TKA02", LIVE["tka02"], "837 CoCd↔CO assignments. 1710 must be proven in this table before CK11N on 1710."),
+    ]
+    for i, (tab, n, note) in enumerate(copc_tables, 1):
+        pages.append(p(
+            f"{2020 + i:04d} · LIVE table {tab} · {n:,} entries",
+            f"""
+<p><b>{tab}</b> Number of Entries = <b>{n:,}</b> (popup, not a 500 list).</p>
+<p>{note}</p>
+<p>Next glass: SE16N {tab} → filter 1710 / WERKS / KOKRS → Number of Entries
+again on the slice → then one display t-code (CK13N / CKM3N / MM03).</p>
+{hops_for("COPC", tab)}
+{support_for(tab)}
+{change_for(tab)}
 """,
         ))
 

@@ -21,6 +21,14 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 # IAccessible / UIA name fragments that identify the command field.
+DB_NAME_HINTS = (
+    "data base",
+    "database",
+    "db table",
+    "table name",
+    "tabname",
+)
+
 OKCD_NAME_HINTS = (
     "command",
     "ok-code",
@@ -130,6 +138,63 @@ def score_okcd_candidate(child: ChildInfo, parent: Rect) -> int:
     if 0.008 <= rel_h <= 0.09:
         score += 5
     return score
+
+
+def score_database_candidate(
+    child: ChildInfo, parent: Rect, *, okcd_hwnd: int | None = None
+) -> int:
+    """SE16N 'Data base' — upper content band, not the toolbar okcd, not the ALV."""
+    if okcd_hwnd and child.hwnd == okcd_hwnd:
+        return 0
+    name = f"{child.acc_name} {child.title} {child.automation_id}".lower()
+    cls = (child.class_name or "").lower()
+    score = 0
+    if any(h in name for h in DB_NAME_HINTS):
+        score += 60
+    if any(h in cls for h in EDIT_CLASS_HINTS):
+        score += 20
+    pw = max(parent.w, 1)
+    ph = max(parent.h, 1)
+    rel_x = (child.rect.left - parent.left) / pw
+    rel_y = (child.rect.top - parent.top) / ph
+    rel_w = child.rect.w / pw
+    rel_h = child.rect.h / ph
+    if 0.14 <= rel_y <= 0.34:
+        score += 25
+    if 0.16 <= rel_x <= 0.52:
+        score += 15
+    if 0.10 <= rel_w <= 0.42:
+        score += 10
+    if 0.012 <= rel_h <= 0.07:
+        score += 10
+    if rel_y < 0.12:
+        score -= 45
+    if rel_y > 0.42:
+        score -= 40
+    if child.rect.w < 80:
+        score -= 20
+    return score
+
+
+def pick_database(
+    children: list[ChildInfo], parent: Rect, *, okcd_hwnd: int | None = None
+) -> ChildInfo | None:
+    if not children:
+        return None
+    ranked = sorted(
+        ((score_database_candidate(c, parent, okcd_hwnd=okcd_hwnd), c) for c in children),
+        key=lambda t: t[0],
+        reverse=True,
+    )
+    best_score, best = ranked[0]
+    if best_score < 40:
+        return None
+    name = f"{best.acc_name} {best.title}".lower()
+    # Without an accessible name, Belize owner-draw is not a safe hwnd — a
+    # wrong click steals the /nSE16N caret and Data base stays empty.
+    if not any(h in name for h in DB_NAME_HINTS) and best_score < 85:
+        return None
+    return best
 
 
 def pick_okcd(children: list[ChildInfo], parent: Rect) -> ChildInfo | None:
@@ -528,30 +593,85 @@ class SapHwndSession:
 
     def find_content_edit(self, *, exclude: int | None = None) -> int | None:
         """First wide Edit in the upper content band — SE16N 'Data base', not okcd."""
+        return self.find_database_hwnd(exclude=exclude)
+
+    def find_database_hwnd(self, *, exclude: int | None = None) -> int | None:
+        """Locate the SE16N Data base field as a real child control."""
         parent = _window_rect(self.hwnd)
         okcd = exclude
         try:
             okcd = okcd or self.okcd_hwnd()
         except OkcdNotFound:
             okcd = None
-        best: tuple[int, ChildInfo] | None = None
-        for child in _enum_children(self.hwnd):
-            if child.hwnd == okcd:
-                continue
-            if "edit" not in (child.class_name or "").lower():
-                continue
-            ph = max(parent.h, 1)
-            pw = max(parent.w, 1)
-            rel_y = (child.rect.top - parent.top) / ph
-            rel_x = (child.rect.left - parent.left) / pw
-            if not (0.12 <= rel_y <= 0.40 and 0.04 <= rel_x <= 0.45):
-                continue
-            if child.rect.w < 80:
-                continue
-            score = child.rect.w - int(rel_y * 200)
-            if best is None or score > best[0]:
-                best = (score, child)
-        return best[1].hwnd if best else None
+        picked = pick_database(_enum_children(self.hwnd), parent, okcd_hwnd=okcd)
+        return picked.hwnd if picked else None
+
+    def _click_hwnd(self, ctrl_hwnd: int) -> None:
+        import win32api  # type: ignore
+        import win32con  # type: ignore
+        import win32gui  # type: ignore
+
+        l, t, r, b = win32gui.GetWindowRect(ctrl_hwnd)
+        win32api.SetCursorPos(((l + r) // 2, (t + b) // 2))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        time.sleep(0.03)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        try:
+            win32gui.SetFocus(ctrl_hwnd)
+        except Exception:
+            pass
+        time.sleep(0.08)
+
+    def clear_focused(self) -> None:
+        """Clear the focused edit. Does not steal focus back to the session frame."""
+        _send_vk(VK_CONTROL, up=False)
+        _send_vk(VK_A, up=False)
+        _send_vk(VK_A, up=True)
+        _send_vk(VK_CONTROL, up=True)
+        time.sleep(0.03)
+        send_key_name("DELETE")
+        time.sleep(0.04)
+
+    def fill_field(self, ctrl_hwnd: int, text: str, *, enter: bool = True) -> str:
+        """
+        Put text in a specific child edit. Never call session.focus() first —
+        that unfocuses Data base and the keys land nowhere (empty SE16N field).
+        """
+        name = (text or "").strip()
+        self._click_hwnd(ctrl_hwnd)
+        self.clear_focused()
+        # SendInput while THIS edit is focused. WM_SETTEXT is ignored on Belize owner-draw
+        # and session.focus() would steal the caret (empty Data base).
+        send_text_unicode(name)
+        time.sleep(0.08)
+        readback = ""
+        try:
+            import win32gui  # type: ignore
+
+            readback = win32gui.GetWindowText(ctrl_hwnd) or ""
+        except Exception:
+            readback = ""
+        if enter:
+            _post_enter(ctrl_hwnd)
+            if _same_process_foreground(self.hwnd, self.pid):
+                send_key_name("ENTER")
+            time.sleep(0.7)
+            # SE16N: the → next to Data base loads the table if Enter did not.
+            try:
+                import win32api  # type: ignore
+                import win32con  # type: ignore
+                import win32gui  # type: ignore
+
+                l, t, r, b = win32gui.GetWindowRect(ctrl_hwnd)
+                win32api.SetCursorPos((r + 22, (t + b) // 2))
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+                time.sleep(0.03)
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+                time.sleep(0.8)
+            except Exception:
+                pass
+        log.info("hwnd fill_field %r hwnd=%s readback=%r", name[:40], ctrl_hwnd, readback[:40])
+        return readback
 
     def set_control_text(self, ctrl_hwnd: int, text: str) -> None:
         self.focus(settle=0.08)
@@ -564,11 +684,22 @@ class SapHwndSession:
         _set_window_text(ctrl_hwnd, text)
         time.sleep(0.05)
 
-    def type_text(self, text: str, *, secret: bool = False, clear: bool = False) -> None:
+    def type_text(
+        self,
+        text: str,
+        *,
+        secret: bool = False,
+        clear: bool = False,
+        steal_focus: bool = True,
+    ) -> None:
         """Type into the currently focused control inside this SAP process."""
-        self.focus(settle=0.08)
+        if steal_focus:
+            self.focus(settle=0.08)
         if clear:
-            self.clear_field()
+            if steal_focus:
+                self.clear_field()
+            else:
+                self.clear_focused()
         send_text_unicode(text)
         log.debug("hwnd typed %r", "***" if secret else text[:40])
 

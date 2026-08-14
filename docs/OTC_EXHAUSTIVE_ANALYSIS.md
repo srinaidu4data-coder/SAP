@@ -1,3 +1,17 @@
+# Sell and collect — technical appendix
+
+**Consultant briefing (read first):** [CONSULTANT_BRIEFING.md](CONSULTANT_BRIEFING.md)
+
+**In business language:** 12,255 sales orders and 5,982 customer invoices
+already exist on company 1710. 3,014 invoices are unpaid. Credit limits are
+empty. Most bills never produced a customer letter. Do not add a 377th order
+type. Restrict the search help, complete customer sales views, and work the
+unpaid list every week.
+
+The rest of this file is the **object map** for an SD/AR analyst.
+
+---
+
 # OTC exhaustive analysis — APEX-2023 / client 100
 
 **Analysis wing. Read-only. Max Hits raised to 99999** (the 500 default is a lie).  

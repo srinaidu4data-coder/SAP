@@ -1,11 +1,63 @@
+# Make and cost — technical appendix
+
+**Consultant briefing (read first):** [CONSULTANT_BRIEFING.md](CONSULTANT_BRIEFING.md)
+
+**In business language:** this plant already costs and manufactures. There are
+thousands of standard cost estimates and years of actual costing. There are
+74 costing recipes and only one overhead sheet. Pick one recipe for plant
+1710. Do not cost the drop-ship material as if it were manufactured. Zero or
+old standard prices make the margin on customer invoices a lie.
+
+The rest of this file is the **object map** for a CO analyst.
+
+---
+
 # Product Costing (CO-PC) — granular mind map
 
 **System:** APEX-2023 / client 100 / 1710 is the PTP-OTC company.  
 **Standard:** `docs/ANALYSIS_GRANULARITY_STANDARD.md`  
-**Live census:** `data/runs/analysis_copc/LIVE_COUNTS.json` (agent running).  
+**Live census:** `data/runs/analysis_copc/LIVE_COUNTS.json` — Number of Entries popups, not 500-row lists.  
 Ranks: LIVE / INFERRED / CATALOG / ABSENT.
 
 This is not “CK11N exists.” It is every leaf that makes a standard cost, an actual, a variance, and a P&L line.
+
+## LIVE Number of Entries (verified popups)
+
+| Table | Entries | Rank | Meaning |
+|---|---:|---|---|
+| TCK03 | **74** | LIVE | Costing variants — same F4-sprawl disease as TVAK 376 |
+| TCK05 | **37** | LIVE | Valuation variants |
+| TCK14 | **121** | LIVE | Partner / transfer-price cost components |
+| TCK31 | **1** | LIVE | Costing sheet — almost unused |
+| TCKH1 | **3,590** | LIVE | Cost component texts |
+| KEKO | **3,472** | LIVE | Cost estimate headers |
+| KEPH | **7,647** | LIVE | Cost component splits (COGS manufactured) |
+| CKIS | **8,444** | LIVE | Itemization (BOM / activity / subcon) |
+| CKHS | **3,241** | LIVE | Unit-costing headers |
+| CKMLHD | **2,594** | LIVE | Material Ledger headers — **ML is on** |
+| CKMLPP | **45,572** | LIVE | ML period quantities |
+| CKMLCR | **85,131** | LIVE | ML period values / PUP |
+| CKMLPR | **4,417** | LIVE | ML prices |
+| T001K | **1,004** | LIVE | Valuation areas |
+| MBEW | **3,071** | LIVE | Material valuation (S/V, STPRS, VERPR) |
+| QBEW | **0** | LIVE | Project stock unused |
+| EBEW | **89** | LIVE | Sales-order / MTO stock exists |
+| AUFK | **2,950** | LIVE | Order master — factory is not sales-only |
+| AFKO | **2,479** | LIVE | PP order headers |
+| AFPO | **1,021** | LIVE | PP order items (popup 1,021; distinct from AFKO 2,479) |
+| RESB | **10,666** | LIVE | Reservations / dependent requirements |
+| AFRU | **1,838** | LIVE | Order confirmations |
+| COSP | **26,953** | LIVE | CO object cost totals (external) |
+| COEP | **38,507** | LIVE | CO line items — actuals are heavy |
+| CSKB | **10,732** | LIVE | Cost elements — **not empty** (earlier CATALOG guess was wrong) |
+| CSKS | **1,623** | LIVE | Cost center masters |
+| TKKAA | **35** | LIVE | Results-analysis check table (WIP/RA config exists) |
+| TKA01 | **591** | LIVE | Controlling areas — kitchen-sink landscape |
+| TKA02 | **837** | LIVE | Company code ↔ CO area assignments |
+
+**Thesis from the numbers (not from a catalog):** this is not a sandbox with a demo CK11N. There are **3,472 estimates**, **8,444 itemizations**, and **85,131 ML value periods**. Standard cost and actual costing both ran. 74 costing variants vs 1 costing sheet means **variant sprawl, almost no overhead sheet**. 2,594 ML headers vs 3,071 MBEW means **most valuated materials are in the ledger**. 45,572 / 2,594 ≈ **17.6 periods per material** — this system has been closing ML for years, not once.
+
+**PP is live, not a cousin:** AUFK 2,950 / AFKO 2,479 / RESB 10,666 / AFRU 1,838. Confirmations exist, so variance and WIP tickets are real, not theoretical. **CO actuals are a factory:** COEP 38,507 / COSP 26,953 / CSKB 10,732 / CSKS 1,623. **Org sprawl matches TVAK:** TKA01 591 controlling areas, TKA02 837 assignments, T001K 1,004 valuation areas. 1710 is one plant in a kitchen-sink book. **QBEW=0 / EBEW=89:** no project stock; MTO exists. **TKKAA=35:** results-analysis / WIP config is present — KKAX is not shelfware.
 
 ```
 PRODUCT COSTING
@@ -159,7 +211,7 @@ PRODUCT COSTING
 5. **Activity price 0 (COST)** → labor component 0 → margin lie in VBRK F2.  
 6. **OBYC PRD missing** → GR 101 dumps even if MIGO qty is right (second reason besides TG10).  
 7. **1710 OTC F2** (5,982 bills) uses COGS from this stack — wrong STPRS = wrong margin.  
-8. **KNKK=0** is credit; **CSKB empty** is costing — two empty masters, two ticket families.
+8. **KNKK=0** is credit (empty). **CSKB is not empty** — 10,732 cost elements LIVE. The empty-master ticket family is credit, not costing.
 
 ## Predicted support (CO-PC)
 
@@ -187,4 +239,6 @@ PRODUCT COSTING
 
 ## What “done” means for this process
 
-Number of Entries on **TCK03, TCK05, KEKO, CKMLHD, MBEW, AUFK, T001K, CSKB** is in `LIVE_COUNTS.json`. Until those N are LIVE, variant names stay CATALOG. The mind map does not wait — leaves are already named at field level.
+Number of Entries on the spine is LIVE (popups in `data/runs/analysis_copc/`). Variant *names* and the 1710 slice stay CATALOG until a filtered list is opened. The **counts** are no longer CATALOG.
+
+**Corrected this session:** CSKB is not empty. QBEW is empty. EBEW is 89. AUFK is 2,950 — this is a manufacturing + costing system, not a sales-only book.

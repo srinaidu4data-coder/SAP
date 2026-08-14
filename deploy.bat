@@ -11,6 +11,7 @@ set PYTHONPATH=%~dp0
 set SAPILOT_VAULT_PASSPHRASE=%SAPILOT_VAULT_PASSPHRASE%
 
 echo === SAPILOT DEPLOY (local) ===
+echo   Product    : http://127.0.0.1:8800
 echo   Copilot UI : http://127.0.0.1:8765
 echo   Mega UI    : http://127.0.0.1:8777
 echo   Auto bot   : http://127.0.0.1:8788
@@ -22,6 +23,11 @@ if errorlevel 1 (
   echo ERROR: python not on PATH
   exit /b 1
 )
+
+echo Starting Product console :8800 ...
+start "SAPILOT-Product-8800" cmd /c "cd /d %~dp0 && set PYTHONPATH=%~dp0 && set SAPILOT_ALLOW_UNSIGNED_POLICY=1 && set SAPILOT_LAB=1 && set SAPILOT_DATA=%~dp0data && set SAPILOT_PRODUCT_DEBUG=1 && python -m sapilot product --debug"
+
+timeout /t 2 /nobreak >nul
 
 echo Starting Co-pilot webapp :8765 ...
 start "SAPILOT-Copilot-8765" cmd /c "cd /d %~dp0 && set PYTHONPATH=%~dp0 && set SAPILOT_ALLOW_UNSIGNED_POLICY=1 && set SAPILOT_LAB=1 && set SAPILOT_DATA=%~dp0data && python -m sapilot.webapp.app"
@@ -38,6 +44,7 @@ start "SAPILOT-Autobot-8788" cmd /c "cd /d %~dp0 && set PYTHONPATH=%~dp0 && set 
 
 echo.
 echo Deployed locally. Open:
+echo   http://127.0.0.1:8800
 echo   http://127.0.0.1:8765
 echo   http://127.0.0.1:8777
 echo   http://127.0.0.1:8788

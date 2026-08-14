@@ -1,9 +1,11 @@
-# SAPILOT — Autonomous SAP Execution Agent
+# SAPILOT — general SAP GUI operator
 
-Portable Windows agent for SAP payment-run **diagnosis** and (tier-gated) execution.  
-Built from the multi-agent reviewed master package: SOD tiers, grounded GUI actions, redaction, governor, full journal.
+A person at the glass for **any** SAP module, **any** t-code, **any** process.
+Analysis wing looks. Display wing walks display screens only. Hands create
+only when you ask — and never from the display wing.
 
-> **The product is the diagnostic layer.** The autonomous F110 demo is the showcase.
+Named cycles (buy, sell, cost, collect, payment diagnosis, …) are **examples**.
+The last process used to test is not the product. See `.grok/OPERATOR_SCOPE.md`.
 
 ## Quick start (no SAP required)
 
@@ -16,6 +18,16 @@ python -m pytest
 ```
 
 Or: `run.bat diagnose --bukrs 1000 --method A --mock`
+
+## Portable pack (try on another Windows PC)
+
+```bat
+python scripts\pack_portable.py
+```
+
+Produces `dist\SAPILOT-portable\` and `dist\SAPILOT-portable.zip` (~55 MB).
+Copy the zip to the other PC, unzip, run **`CHECK.bat`**. That test does not
+need SAP. Live GUI still needs SAP Logon on the host. See `docs/PORTABLE.md`.
 
 ## Deploy (local) + GitHub
 
@@ -32,6 +44,7 @@ deploy.bat
 
 | Surface | URL |
 |---------|-----|
+| Product (Analyze + Excel + live glass) | http://127.0.0.1:8800 |
 | Co-pilot | http://127.0.0.1:8765 |
 | Mega Co-pilot | http://127.0.0.1:8777 |
 | Auto bot | http://127.0.0.1:8788 |

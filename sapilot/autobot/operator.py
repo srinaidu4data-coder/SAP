@@ -182,23 +182,93 @@ class HumanEyesHands:
         self._note("click_label", label=hit.text, rx=rx, ry=ry, delta=round(delta, 4), ok=ok)
         return ActResult(ok, "click_label", hit.text, after)
 
-    def type_value(self, value: str, *, clear: bool = True, enter: bool = False) -> ActResult:
+    def type_value(
+        self,
+        value: str,
+        *,
+        clear: bool = True,
+        enter: bool = False,
+        steal_focus: bool = False,
+    ) -> ActResult:
+        """Type into the already-focused field. Do not steal caret to the frame."""
         from sapilot.connect.hwnd_input import bind_window
         from sapilot.policy.guard import authorize_write
 
         authorize_write("type_text", target="focused", value=value[:40], logical="field")
         op = self._op()
         w = bind_window(op.hwnd)
-        if clear:
-            w.clear_field()
-        w.type_text(value)
+        w.type_text(value, clear=clear, steal_focus=steal_focus)
         if enter:
-            w.send_key("ENTER")
+            if steal_focus:
+                w.send_key("ENTER")
+            else:
+                from sapilot.connect.hwnd_input import send_key_name
+
+                send_key_name("ENTER")
             time.sleep(0.8)
         else:
             time.sleep(0.15)
-        self._note("type", value=value[:40])
+        self._note("type", value=value[:40], steal_focus=steal_focus)
         return ActResult(True, "type", value[:40])
+
+    def fill_se16n_table(self, table: str) -> ActResult:
+        """Put a table name in SE16N Data base. Never type into the selection ALV."""
+        from sapilot.connect.hwnd_input import bind_session, send_key_name, send_text_unicode
+        from sapilot.policy.guard import authorize_write
+        from sapilot.product.se16n_field import locate_database
+
+        name = (table or "").strip().upper()
+        authorize_write("type_text", target="SE16N Data base", value=name[:40], logical="field")
+        # Fresh /nSE16N puts the caret in Data base. That is how you enter the table.
+        self.goto("SE16N")
+        time.sleep(0.45)
+        sess = bind_session(hwnd=self._op().hwnd)
+        # After /nSE16N, Belize often leaves the caret in the command field.
+        # Click the Data base box, clear leftover name, then type.
+        self.click_frac(0.28, 0.248)
+        time.sleep(0.1)
+        for _ in range(16):
+            send_key_name("BACK")
+        send_text_unicode(name)
+        send_key_name("ENTER")
+        time.sleep(0.9)
+        view = self.see(f"{name.lower()}_typed")
+        blob = " ".join(w.text for w in (view.words or []))
+        status = (view.status.text if view.status else "") or ""
+        from sapilot.product.sap_status import assess_load
+
+        judged = assess_load(status, blob, name)
+        if judged["fatal"]:
+            self._note(
+                "fill_se16n",
+                table=name,
+                via="autofocus",
+                error=judged["kind"],
+                status=(judged["text"] or "")[:120],
+            )
+            return ActResult(False, "fill_se16n", judged["text"] or judged["kind"], view)
+        if name.replace(" ", "") in blob.upper().replace(" ", "") and judged["loaded"]:
+            self._note("fill_se16n", table=name, via="autofocus")
+            return ActResult(True, "fill_se16n", name)
+
+        rx, ry, how = locate_database(view.words)
+        self.click_frac(rx, ry)
+        time.sleep(0.12)
+        sess.type_text(name, clear=True, steal_focus=False)
+        send_key_name("ENTER")
+        time.sleep(0.5)
+        # → immediately to the right of Data base loads the table.
+        self.click_frac(min(0.46, rx + 0.12), ry)
+        time.sleep(0.8)
+        view = self.see(f"{name.lower()}_retyped")
+        blob = " ".join(w.text for w in (view.words or []))
+        status = (view.status.text if view.status else "") or ""
+        judged = assess_load(status, blob, name)
+        if judged["fatal"]:
+            self._note("fill_se16n", table=name, via=how, error=judged["kind"], status=(judged["text"] or "")[:120])
+            return ActResult(False, "fill_se16n", judged["text"] or judged["kind"], view)
+        self._note("fill_se16n", table=name, via=how, rx=rx, ry=ry)
+        return ActResult(True, "fill_se16n", name)
 
     def fill_label(
         self,

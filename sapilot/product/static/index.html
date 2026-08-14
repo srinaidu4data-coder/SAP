@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SAPILOT</title>
+<style>
+  :root {
+    --bg:#070a12; --panel:#0c1220; --card:#131b2e; --line:#27324d;
+    --txt:#eef2ff; --mut:#8b97b8; --acc:#7c93ff; --ok:#3dd68c;
+    --bad:#ff6b7a; --warn:#f5c16c; --live:#4ee0c1;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:radial-gradient(1000px 480px at 6% -10%,#1a2450 0%,transparent 55%),var(--bg);
+    color:var(--txt);font:15px/1.45 "Segoe UI",system-ui,sans-serif;
+    display:flex;flex-direction:column;
+  }
+  header{
+    display:flex;justify-content:space-between;align-items:center;gap:.8rem;
+    padding:.65rem 1rem;border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  .brand b{letter-spacing:.08em}
+  .brand span{color:var(--mut);margin-left:.5rem;font-size:.82rem}
+  .live{display:flex;align-items:center;gap:.4rem;padding:.28rem .7rem;
+        border:1px solid var(--line);border-radius:999px;font-size:.75rem;max-width:46%;
+        color:var(--mut);background:var(--panel)}
+  .dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--bad);flex-shrink:0}
+  .live.on .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .shell{flex:1;display:grid;grid-template-columns:minmax(280px,42%) 1fr;min-height:0}
+  .glass,.report{min-width:0;min-height:0;overflow:auto}
+  .glass{border-right:1px solid var(--line);background:#080c18;display:flex;flex-direction:column}
+  .ghead{display:flex;justify-content:space-between;align-items:center;padding:.55rem .8rem;border-bottom:1px solid var(--line)}
+  .ghead b{font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+  .phase{color:var(--live);font-size:.78rem}
+  #screen{width:100%;flex:1;object-fit:contain;background:#05070f;min-height:220px}
+  .empty-glass{flex:1;display:flex;align-items:center;justify-content:center;color:var(--mut);text-align:center;padding:2rem}
+  .bar{height:4px;background:#1a2238}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4ee0c1,#7c93ff);transition:width .3s}
+  .current{padding:.45rem .8rem;font-size:.8rem;color:var(--warn);border-top:1px solid var(--line);min-height:2.2rem}
+  .mindbox{border-top:1px solid var(--line);padding:.55rem .8rem .7rem;background:#0a1020;flex-shrink:0;max-height:42%;overflow:auto}
+  .mindbox .mhead{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);margin-bottom:.25rem}
+  .mindbox .thought{font-size:.82rem;color:var(--txt);margin:0 0 .35rem}
+  .mindbox .next{font-size:.75rem;color:var(--mut);margin:0 0 .45rem}
+  .beliefs{display:flex;flex-wrap:wrap;gap:.3rem}
+  .belief{font-size:.68rem;padding:.18rem .45rem;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+  .belief.miss{color:var(--bad);border-color:#5a2430}
+  .belief.empty{color:var(--warn);border-color:#5a4a20}
+  .belief.live{color:var(--ok);border-color:#1d4a38}
+  .report{padding:1rem 1.15rem 7rem}
+  .hero-empty{max-width:640px;margin:3rem auto 0;text-align:center}
+  .hero-empty h1{font-size:1.7rem;margin:0 0 .4rem;letter-spacing:-.02em}
+  .hero-empty p{color:var(--mut)}
+  .prompts{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem;margin-top:1rem}
+  h2{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:1.2rem 0 .45rem}
+  h1.rep{font-size:1.35rem;margin:.2rem 0 .25rem}
+  .spine{color:var(--acc);font-size:.92rem;margin:0 0 .6rem}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:.4rem}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.5rem .55rem}
+  .tile em{display:block;font-style:normal;color:var(--mut);font-size:.68rem;letter-spacing:.04em}
+  .tile b{font-size:1.05rem}
+  .tile.zero b{color:var(--warn)}
+  .tile.miss b{color:var(--bad);font-size:.8rem}
+  p.narr{margin:.4rem 0 .7rem}
+  ul.hop{margin:.2rem 0 .8rem 1.05rem;padding:0}
+  ul.hop li{margin:.28rem 0}
+  .scen{border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;margin:.4rem 0;background:var(--card)}
+  .scen .st{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--live)}
+  .scen .st.open{color:var(--mut)}
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.45rem}
+  .thumbs figure{margin:0;background:#080c18;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .thumbs img{width:100%;display:block;aspect-ratio:16/10;object-fit:cover}
+  .thumbs figcaption{padding:.3rem .45rem;font-size:.72rem;color:var(--mut)}
+  table.census{width:100%;border-collapse:collapse;font-size:.8rem}
+  table.census th,table.census td{text-align:left;padding:.28rem .35rem;border-bottom:1px solid #1c253c}
+  table.census th{color:var(--mut);font-weight:600}
+  .log{font:11px/1.4 Consolas,monospace;color:var(--mut);max-height:140px;overflow:auto;white-space:pre-wrap;background:#080c18;border:1px solid var(--line);border-radius:8px;padding:.5rem}
+  .composer{position:sticky;bottom:0;padding:.65rem 1rem .85rem;border-top:1px solid var(--line);
+            background:rgba(7,10,18,.94);display:flex;gap:.5rem;align-items:flex-end}
+  textarea{flex:1;resize:none;min-height:2.5rem;max-height:7rem;border:1px solid var(--line);border-radius:12px;
+           background:var(--card);color:var(--txt);font:inherit;padding:.55rem .75rem}
+  button{font:inherit;border:1px solid var(--line);background:#1c2544;color:var(--txt);
+         padding:.5rem .85rem;border-radius:10px;cursor:pointer}
+  button.p{background:linear-gradient(180deg,#7c93ff,#4c63d4);border-color:#3d52b8;font-weight:700;color:#fff}
+  button.danger{background:#3a1520;border-color:#6b2434;color:#ffc1c8}
+  button.chip{font-size:.78rem;padding:.38rem .7rem;border-radius:999px;background:#121a30}
+  button:disabled{opacity:.5;cursor:wait}
+  .row{display:flex;gap:.4rem;flex-wrap:wrap}
+  .docbar{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;margin:.15rem 0 .85rem;
+          padding:.65rem .8rem;border:1px solid #3d52b8;border-radius:12px;background:#141c38}
+  .docbar a{color:#c9d4ff;font-weight:700;word-break:break-all}
+  .docbar .mut{color:var(--mut);font-size:.82rem}
+  @media(max-width:900px){.shell{grid-template-columns:1fr}.live{max-width:52%}.brand span{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>SAPILOT</b><span>Live glass research · display never creates</span></div>
+  <div style="display:flex;gap:.45rem;align-items:center">
+    <button class="chip" id="btnLearn" type="button">Learn from web</button>
+    <button class="chip" id="btnPractice" type="button">Practice on glass</button>
+    <div id="live" class="live"><i class="dot"></i><span id="liveText">Looking for SAP…</span></div>
+  </div>
+</header>
+
+<div class="shell">
+  <section class="glass">
+    <div class="ghead">
+      <b>Live SAP</b>
+      <span class="phase" id="phase">Idle — ask below</span>
+    </div>
+    <div class="bar"><i id="pbar"></i></div>
+    <div class="empty-glass" id="emptyGlass">Log into SAP (Easy Access). Ask a process. Watch this pane — the operator enters SE16N and display t-codes here.</div>
+    <img id="screen" alt="Live SAP" hidden/>
+    <div class="current" id="current"></div>
+    <div class="mindbox" id="mindbox">
+      <div class="mhead">Mind</div>
+      <div class="thought" id="thought">Starting — I will read the status strip before any Execute.</div>
+      <div class="next" id="mindNext"></div>
+      <div class="beliefs" id="beliefs"></div>
+    </div>
+  </section>
+
+  <section class="report" id="report">
+    <div class="hero-empty" id="welcome">
+      <h1>Ask. Then watch it research on the glass.</h1>
+      <p>Analyze is instant. It uses the live counts already proven on this client (orders, deliveries, invoices, AR, costing). You get the consultant report immediately. Walking SAP is optional proof, not the wait.</p>
+      <div class="prompts">
+        <button class="chip ask-ex" type="button">Analyze complete RAR process with complete granular level of scenario analysis</button>
+        <button class="chip ask-ex" type="button">OTC 10 tables: execute contents and write one Excel with a tab per table</button>
+        <button class="chip ask-ex" type="button">Analyze order to cash funnel on this client</button>
+        <button class="chip ask-ex" type="button">Analyze treasury cash and house banks</button>
+        <button class="chip ask-ex" type="button">Analyze product costing and material ledger</button>
+      </div>
+    </div>
+    <div id="body" hidden></div>
+  </section>
+</div>
+
+<form class="composer" id="form">
+  <textarea id="q" rows="1" autofocus placeholder="Ask SAPILOT to analyze a process on the live SAP GUI…"></textarea>
+  <button class="danger" id="stop" type="button" hidden>Stop</button>
+  <button class="p" id="send" type="submit">Analyze</button>
+</form>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let jobId = null;
+let pollTimer = null;
+let lastSeq = -1;
+
+async function api(path, opt) {
+  const r = await fetch(path, Object.assign({cache:"no-store"}, opt || {}));
+  let j = {};
+  try { j = await r.json(); } catch (e) { throw new Error("Server returned non-JSON (" + r.status + ")"); }
+  if (!r.ok && !j.error) j.error = "HTTP " + r.status;
+  return j;
+}
+function fmt(n) {
+  if (n === null || n === undefined) return "—";
+  return Number(n).toLocaleString();
+}
+function pct(p) {
+  if (!p || !p.total) return 0;
+  return Math.min(100, Math.round(100 * (p.done || 0) / p.total));
+}
+async function ping() {
+  try {
+    const j = await api("/api/live");
+    $("liveText").textContent = (j.title || "No SAP") + (j.hint ? " — " + j.hint : "");
+    $("live").classList.toggle("on", !!j.ok);
+  } catch (e) {
+    $("liveText").textContent = "Console offline — run start_product.bat";
+  }
+}
+function render(j) {
+  $("welcome").hidden = true;
+  $("body").hidden = false;
+  $("phase").textContent = (j.status || "") + (j.phase ? " · " + j.phase : "");
+  $("current").textContent = j.current || "";
+  $("pbar").style.width = pct(j.progress) + "%";
+  $("stop").hidden = !(j.status === "running" || j.status === "starting" || j.status === "stopping");
+  $("send").disabled = j.status === "running" || j.status === "starting";
+
+  if (j.shot_seq && j.shot_seq !== lastSeq) {
+    lastSeq = j.shot_seq;
+    $("screen").src = "/api/research/" + j.id + "/shot?n=" + j.shot_seq;
+    $("screen").hidden = false;
+    $("emptyGlass").hidden = true;
+  }
+
+  const counts = j.counts || [];
+  const live = counts.filter(c => c.entries_found != null);
+  const tiles = live.slice(-12).reverse().map(c => {
+    const cls = c.entries_found === 0 ? " zero" : "";
+    return "<div class='tile"+cls+"'><em>"+c.table+"</em><b>"+fmt(c.entries_found)+"</b></div>";
+  }).join("");
+  const miss = counts.filter(c => c.entries_found == null).slice(-4).map(c =>
+    "<div class='tile miss'><em>"+c.table+"</em><b>not on glass</b></div>"
+  ).join("");
+
+  const hops = (j.hops || []).map(h => "<li>"+h+"</li>").join("");
+  const scens = (j.scenarios || []).map(s =>
+    "<div class='scen'><div class='st "+(s.status==="LIVE"?"":"open")+"'>"+ (s.status||"OPEN") +"</div><div>"+s.text+"</div></div>"
+  ).join("");
+  const narr = (j.narrative || []).map(p => "<p class='narr'>"+p+"</p>").join("");
+  const qs = (j.questions || []).map(q => "<li>"+q+"</li>").join("");
+
+  const visits = j.visits || [];
+  const thumbs = visits.filter(v => v.shot).map(v =>
+    "<figure><img src='/api/research/"+j.id+"/file/"+v.shot+"' alt='"+v.tcode+"'/><figcaption>"+v.tcode+" — "+(v.title||"")+"</figcaption></figure>"
+  ).join("");
+  const popShots = counts.filter(c => c.shot && c.entries_found != null).slice(-8).map(c =>
+    "<figure><img src='/api/research/"+j.id+"/file/"+c.shot+"' alt='"+c.table+"'/><figcaption>"+c.table+" = "+fmt(c.entries_found)+"</figcaption></figure>"
+  ).join("");
+
+  const rows = counts.slice().reverse().map(c =>
+    "<tr><td>"+c.table+"</td><td>"+(c.entries_found==null?"—":fmt(c.entries_found))+"</td><td>"+(c.rank||"")+"</td><td>"+(c.notes||"")+"</td></tr>"
+  ).join("");
+
+  const ev = (j.events || []).slice().reverse().map(e => e.text).join("\n");
+  const prog = j.progress || {};
+  const err = j.error ? "<p class='narr' style='color:var(--bad)'>"+j.error+"</p>" : "";
+  const docUrl = j.report_url || ("/research/" + j.id);
+  const abs = location.origin + docUrl;
+  const docbar =
+    "<div class='docbar'><div><div class='mut'>Research document</div>"+
+    "<a id='docLink' href='"+docUrl+"' target='_blank' rel='noopener'>"+abs+"</a></div>"+
+    "<button type='button' class='p' onclick=\"window.open('"+docUrl+"','_blank')\">Open report</button>"+
+    (j.excel_url ? "<a class='p' style='display:inline-block;padding:.5rem .85rem;border-radius:10px;text-decoration:none' href='"+j.excel_url+"'>Download Excel</a>" : "")+
+    "</div>";
+  const studies = (j.studies||[]).map(s =>
+    "<div class='scen'><div class='st'>"+(s.table||"")+"</div><div>"+(s.story||"")+"</div></div>"
+  ).join("");
+
+  $("body").innerHTML =
+    "<h1 class='rep'>"+(j.title || j.asked || "Research")+"</h1>"+
+    "<div class='spine'>"+(j.spine || "")+"</div>"+
+    docbar+
+    err+
+    "<p class='narr'>Sitting: <b>"+(prog.done||0)+"</b> / "+(prog.total||j.universe||0)+
+    " · LIVE tables "+(prog.tables_ok||0)+
+    " · empty "+(prog.tables_zero||0)+
+    " · not on system "+(prog.tables_miss||0)+
+    " · display hops "+(prog.visits||0)+
+    " · planned universe "+(j.universe||0)+" tables. Open the table (F8). F7 is the count. Nothing created.</p>"+
+    (function(){
+      const d = j.drill || {};
+      if (!d.story && !(d.cycles||[]).length) return "";
+      const layers = d.layers || {};
+      const cyc = (d.cycles||[]).map(c => {
+        const hops = (c.showable||[]).slice(0,10).map(s => "<li><b>"+s.tcode+"</b> — "+(s.purpose||"")+"</li>").join("");
+        return "<div class='scen'><div class='st'>"+(c.can_walk_e2e?"SHOWABLE E2E":"partial")+" · "+(c.name||"")+"</div><b>"+(c.title||"")+"</b><div class='mut'>"+(c.spine||"")+"</div><ul class='hop'>"+hops+"</ul></div>";
+      }).join("");
+      const walk = (d.display_walk||[]).map(s => "<li><b>"+s.tcode+"</b> — "+(s.purpose||"")+"</li>").join("");
+      return "<h2>End-to-end display drill-through</h2><p class='narr'>"+(d.story||"")+"</p>"+
+        "<p class='narr'>Config "+(layers.config||0)+" · master "+(layers.master||0)+" · transactional "+(layers.transaction||0)+" · total "+(layers.total||0)+". "+(d.dictionary||"")+"</p>"+
+        cyc+"<h2>Display-only walk</h2><ul class='hop'>"+walk+"</ul>";
+    })()+
+    "<h2>Live census</h2><div class='tiles'>"+tiles+miss+"</div>"+
+    "<h2>What the numbers mean together</h2>"+narr+
+    (hops ? "<h2>Multi-hop</h2><ul class='hop'>"+hops+"</ul>" : "")+
+    (scens ? "<h2>Scenario analysis</h2>"+scens : "")+
+    (thumbs || popShots ? "<h2>Evidence on the glass</h2><div class='thumbs'>"+thumbs+popShots+"</div>" : "")+
+    (qs ? "<h2>Still ask on the glass</h2><ul class='hop'>"+qs+"</ul>" : "")+
+    "<h2>Every table this sitting</h2><table class='census'><thead><tr><th>Table</th><th>Entries</th><th>Rank</th><th>Notes</th></tr></thead><tbody>"+
+    (rows || "<tr><td colspan='4'>Waiting for first F7…</td></tr>")+"</tbody></table>"+
+    "<h2>Operator log</h2><div class='log'>"+ev+"</div>";
+}
+async function tick() {
+  if (!jobId) return;
+  try {
+    const j = await api("/api/research/" + jobId);
+    if (j.ok === false && j.error) {
+      $("current").textContent = j.error;
+      return;
+    }
+    $("phase").textContent = (j.status || "") + (j.phase ? " · " + j.phase : "");
+    $("current").textContent = j.thought || j.current || "";
+    if (j.thought) $("thought").textContent = j.thought;
+    if (j.mind) paintMind(j);
+    $("pbar").style.width = pct(j.progress) + "%";
+    $("stop").hidden = !(j.status === "running" || j.status === "starting" || j.status === "stopping");
+    if (j.shot_seq && j.shot_seq !== lastSeq) {
+      lastSeq = j.shot_seq;
+      $("screen").src = "/api/research/" + j.id + "/shot?n=" + j.shot_seq;
+      $("screen").hidden = false;
+      $("emptyGlass").hidden = true;
+    }
+    if (j.status === "done" || j.status === "error" || j.status === "stopped") {
+      clearInterval(pollTimer); pollTimer = null;
+      $("send").disabled = false;
+      $("stop").hidden = true;
+    }
+  } catch (e) {
+    $("current").textContent = e.message;
+  }
+}
+function showReport(j) {
+  render(j);
+  const url = j.report_url || ("/research/" + j.id);
+  $("phase").textContent = "done · instant";
+  $("current").textContent = "Report ready.";
+  const frame = document.createElement("iframe");
+  frame.title = "Research document";
+  frame.src = url + "?v=" + Date.now();
+  frame.style.cssText = "width:100%;min-height:70vh;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:.8rem";
+  $("body").appendChild(frame);
+  if ((j.rules && j.rules.length) || j.excel_url) {
+    const box = document.createElement("div");
+    box.className = "docbar";
+    box.style.marginTop = "0.8rem";
+    const rules = (j.rules || []).map(r => "<div class='scen'><div class='st'>RULE</div><b>"+(r.rule||"")+"</b><div>"+(r.evidence||"")+"</div><div class='mut'>"+(r.requirement||"")+"</div></div>").join("");
+    box.innerHTML = (j.excel_url ? "<div><a class='p' style='display:inline-block;padding:.5rem .85rem;border-radius:10px;text-decoration:none' href='"+j.excel_url+"'>Download Excel (all tables + rules)</a></div>" : "") + rules;
+    $("body").insertBefore(box, frame);
+  }
+}
+async function ask(text) {
+  const q = (text || $("q").value || "").trim();
+  if (!q) return;
+  $("q").value = "";
+  $("send").disabled = true;
+  $("welcome").hidden = true;
+  $("body").hidden = false;
+  $("body").innerHTML = "<h1 class='rep'>Writing the analysis…</h1><p class='narr'>Using proven live counts on this book. Not waiting on SE16N.</p>";
+  $("phase").textContent = "analyze";
+  $("current").textContent = "Instant analysis…";
+  try {
+    const j = await api("/api/fast", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({message: q})
+    });
+    if (!j.ok) {
+      $("body").innerHTML = "<h1 class='rep'>Analyze failed</h1><p class='narr'>"+(j.error||"failed")+"</p>";
+      $("send").disabled = false;
+      return;
+    }
+    showReport(j);
+    $("send").disabled = false;
+    // Drive the live SAP window: goto SE16N and type tables. Report stays on the right.
+    try {
+      const live = await api("/api/research/start", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({message: q})
+      });
+      if (live.ok && live.id) {
+        jobId = live.id;
+        lastSeq = -1;
+        $("stop").hidden = false;
+        $("current").textContent = "Report ready. Connecting to SAP and typing…";
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(tick, 800);
+        tick();
+      } else {
+        $("current").textContent = "Report ready. " + (live.error || live.hint || "Log into SAP (Easy Access) so I can type.");
+      }
+    } catch (e) {
+      $("current").textContent = "Report ready. Glass: " + e.message;
+    }
+  } catch (e) {
+    $("body").innerHTML = "<h1 class='rep'>Analyze failed</h1><p class='narr'>"+e.message+"</p>";
+    $("send").disabled = false;
+  }
+}
+$("form").onsubmit = (e) => { e.preventDefault(); ask(); };
+$("q").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
+});
+$("stop").onclick = async () => {
+  if (!jobId) return;
+  await api("/api/research/" + jobId + "/stop", {method:"POST"});
+};
+document.querySelectorAll(".ask-ex").forEach(b => b.onclick = () => ask(b.textContent));
+function paintMind(j) {
+  const mind = j.mind || j;
+  if (mind.thought) $("thought").textContent = mind.thought;
+  if (mind.next) $("mindNext").textContent = mind.next;
+  const chips = (mind.beliefs || []).slice(0, 10).map(b => {
+    const k = b.kind === "missing_table" ? "miss" : (b.kind === "empty" ? "empty" : (b.kind === "live" ? "live" : ""));
+    return "<span class='belief "+k+"'>"+(b.table||"")+" · "+(b.label||b.kind||"")+"</span>";
+  }).join("");
+  if (chips) $("beliefs").innerHTML = chips;
+}
+async function refreshBrain() {
+  try {
+    const j = await api("/api/learn");
+    const m = j.memory || {};
+    $("btnLearn").title = (m.beliefs || 0) + " facts · " + (m.skills || 0) + " skills · " + (m.episodes || 0) + " episodes";
+    $("btnLearn").textContent = "Mind " + (m.beliefs || 0) + " facts";
+    paintMind(j);
+  } catch (e) {}
+}
+$("btnLearn").onclick = async () => {
+  $("btnLearn").disabled = true;
+  $("current").textContent = "Ingesting public SAP navigation recipes (YouTube + community)…";
+  try {
+    const j = await api("/api/learn/ingest", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"});
+    $("current").textContent = "Learned " + ((j.memory && j.knowledge) || j.seeded && j.seeded.recipes || 0) + " recipes. Skills will be used on the next Analyze.";
+  } catch (e) { $("current").textContent = e.message; }
+  $("btnLearn").disabled = false;
+  refreshBrain();
+};
+$("btnPractice").onclick = async () => {
+  $("btnPractice").disabled = true;
+  $("current").textContent = "Practicing on the live glass (display only)…";
+  try {
+    const j = await api("/api/learn/practice", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({laps:1})});
+    $("current").textContent = j.ok
+      ? ("Practice done · " + ((j.laps&&j.laps[0]&&j.laps[0].wins) || 0) + " drills won. Memory updated.")
+      : (j.error || "practice failed");
+  } catch (e) { $("current").textContent = e.message; }
+  $("btnPractice").disabled = false;
+  refreshBrain();
+};
+ping();
+setInterval(ping, 5000);
+refreshBrain();
+setInterval(refreshBrain, 8000);
+(async () => {
+  try {
+    const want = new URLSearchParams(location.search).get("job");
+    const a = want
+      ? await api("/api/research/" + want)
+      : await api("/api/research/active");
+    if (a && a.id) {
+      jobId = a.id;
+      if (a.status === "running" || a.status === "starting") {
+        render(a);
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(tick, 900);
+        tick();
+      } else if (a.report_url || a.status === "done") {
+        $("welcome").hidden = true;
+        $("body").hidden = false;
+        showReport(a);
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

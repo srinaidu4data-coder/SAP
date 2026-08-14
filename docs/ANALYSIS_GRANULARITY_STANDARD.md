@@ -1,6 +1,10 @@
 # Analysis wing — granularity standard
 
-Use this for **every** future process (Product Costing, Collections, Disputes, OTC, PTP, R2R). A 50-page memo that skips a leaf is incomplete.
+**Publish first in consultant language** (`CONSULTANT_BRIEFING.md`). A finding
+that a process owner cannot act on is not published. Table names belong in an
+appendix.
+
+Use this standard for **every** future process (Product Costing, Collections, Disputes, OTC, PTP, R2R). A 50-page memo that skips a leaf is incomplete. The briefing still has to tell the story without those leaves.
 
 ## 1. Mind-map shape (every process, every time)
 

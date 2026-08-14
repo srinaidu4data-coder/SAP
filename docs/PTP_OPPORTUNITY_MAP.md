@@ -1,3 +1,16 @@
+# Buy and pay — technical appendix
+
+**Consultant briefing (read first):** [CONSULTANT_BRIEFING.md](CONSULTANT_BRIEFING.md)
+
+**In business language:** company 1710 already buys, receives, and invoices
+vendors. Do not implement purchasing. Stop using TG10 as warehouse stock.
+Use buyer group 002. Put the source list on plant 1710.
+
+The rest of this file is the **object map** for an MM analyst. It is not the
+document you take to a process owner.
+
+---
+
 # PTP opportunity map — APEX-2023 / client 100
 
 **Analysis wing product cut.** Read-only. Evidence ranks: LIVE / INFERRED / CATALOG / ABSENT.

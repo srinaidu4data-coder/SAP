@@ -1,3 +1,16 @@
+# Collect cash — technical appendix
+
+**Consultant briefing (read first):** [CONSULTANT_BRIEFING.md](CONSULTANT_BRIEFING.md)
+
+**In business language:** 3,014 customer invoices are unpaid and 5,174 were
+collected, so cash application works when someone does it. Credit limits do
+not exist. Most unpaid invoices never produced a statement. Stand up a weekly
+unpaid list, decide credit, and send statements before you buy a lockbox.
+
+The rest of this file is the **object map** for an AR/credit analyst.
+
+---
+
 # Collections & Disputes — granular mind map (the missing OTC leaves)
 
 These were treated as “BSID exists.” That is not a process. This is the leaf-level map

@@ -33,6 +33,69 @@ def main() -> None:
     _ensure_env()
 
 
+@main.group("learn")
+def learn_grp() -> None:
+    """Self-learning navigation: ingest public recipes, practice on the glass."""
+
+
+@learn_grp.command("status")
+def learn_status_cmd() -> None:
+    from sapilot.learn.loop import status
+
+    rec = status()
+    console.print(rec)
+
+
+@learn_grp.command("ingest")
+def learn_ingest_cmd() -> None:
+    """Load YouTube/community navigation recipes into memory."""
+    from sapilot.learn.ingest import ingest_web
+
+    console.print(ingest_web())
+
+
+@learn_grp.command("practice")
+@click.option("--laps", default=1, type=int)
+def learn_practice_cmd(laps: int) -> None:
+    """Autonomous display-only practice on the live SAP GUI."""
+    from sapilot.learn.loop import practice
+    from sapilot.product.app import _sap_windows
+
+    console.print(practice(_sap_windows, laps=laps))
+
+
+@main.command("product")
+@click.option("--port", default=8800, type=int)
+@click.option("--debug", is_flag=True, help="Flask + operator debug logs (no reloader).")
+def product_cmd(port: int, debug: bool) -> None:
+    """Open the live product console (operator + display + analysis)."""
+    import os
+
+    os.environ["SAPILOT_PRODUCT_PORT"] = str(port)
+    if debug:
+        os.environ["SAPILOT_PRODUCT_DEBUG"] = "1"
+    from sapilot.product.app import main as product_main
+
+    raise SystemExit(product_main())
+
+
+@main.command("probe")
+@click.option("--tcodes", default="SE16N,VA03", help="Two display t-codes, comma-separated.")
+@click.option("--step", default=22, type=int, help="Seconds before a stuck t-code is cut.")
+def probe_cmd(tcodes: str, step: int) -> None:
+    """Open two display t-codes. Cut a deadlock. Do not retry the same key."""
+    from pathlib import Path
+
+    dest = Path(os.environ.get("SAPILOT_DATA", "data")) / "runs" / "product" / "probe"
+    dest.mkdir(parents=True, exist_ok=True)
+    codes = [p.strip() for p in (tcodes or "").split(",") if p.strip()]
+    from sapilot.product.deadlock import probe_tcodes
+
+    rec = probe_tcodes(codes, shot_dir=str(dest), step_s=step)
+    console.print(rec)
+    raise SystemExit(0 if rec.get("ok") else 2)
+
+
 @main.command("preflight")
 @click.option("--strict", is_flag=True, help="Fail on any required check")
 @click.option("--json-out", "json_out", is_flag=True)
@@ -1864,6 +1927,96 @@ def operator_me21n(
     else:
         console.print(f"[red]NO PO[/red] {out.proof}")
         raise SystemExit(2)
+
+
+@main.group("display")
+def display_grp() -> None:
+    """Display wing: walk existing SAP cycles in display t-codes only.
+
+    Never creates, changes, or posts. Sibling of the analysis wing.
+    PTP/OTC/CO-PC are example cycles — the product is any process spine.
+    """
+
+
+@display_grp.command("list")
+def display_list() -> None:
+    """List example display spines. The product is any process, not these names."""
+    from sapilot.display.catalog import CYCLES
+
+    table = Table(title="Example spines only — not the product. Any process can be walked.")
+    table.add_column("Example")
+    table.add_column("Spine")
+    table.add_column("Steps")
+    for c in CYCLES.values():
+        table.add_row(c.name, c.spine, str(len(c.steps)))
+    console.print("[dim]Core API: display goto <TCODE> · display walk <name> · operator see/goto/fill[/dim]")
+    console.print(table)
+
+
+@display_grp.command("plan")
+@click.argument("cycle", required=False)
+def display_plan(cycle: str | None) -> None:
+    """Print display steps. Omit the name to show every example spine."""
+    from sapilot.display.catalog import CYCLES
+    from sapilot.display.walker import plan
+
+    names = [cycle] if cycle else list(CYCLES)
+    for name in names:
+        c = plan(name)
+        console.print(f"[bold]{c.title}[/bold]")
+        console.print(c.spine)
+        for i, s in enumerate(c.steps, 1):
+            console.print(f"  {i}. [{s.phase}] {s.tcode} — {s.purpose}")
+        console.print()
+
+
+@display_grp.command("goto")
+@click.argument("tcode")
+def display_goto(tcode: str) -> None:
+    """Open one display t-code. Create/change/post is a hard refuse."""
+    from sapilot.display.policy import DisplayPolicyError, assert_display_tcode, is_create_screen
+    from sapilot.autobot.operator import HumanEyesHands
+
+    try:
+        code = assert_display_tcode(tcode)
+    except DisplayPolicyError as e:
+        console.print(f"[red]REFUSED[/red] {e}")
+        raise SystemExit(2)
+    hh = HumanEyesHands()
+    r = hh.goto(code)
+    title = hh._title()
+    if is_create_screen(title):
+        hh.key("F12")
+        console.print(f"[red]WRITE SCREEN[/red] left {title!r}")
+        raise SystemExit(2)
+    console.print(f"{'ok' if r.ok else 'fail'}: {title or r.detail}")
+
+
+@display_grp.command("walk")
+@click.argument("cycle")
+@click.option("--key", "key_opts", multiple=True, help="name=value (overrides default keys)")
+@click.option("--shot-dir", default=None)
+def display_walk(cycle: str, key_opts: tuple[str, ...], shot_dir: str | None) -> None:
+    """Walk a cycle on live SAP GUI. Display only. Existing docs only."""
+    from sapilot.display.walker import walk
+
+    extra: dict[str, str] = {}
+    for item in key_opts:
+        if "=" not in item:
+            console.print(f"[red]bad --key {item} (want name=value)[/red]")
+            raise SystemExit(2)
+        k, v = item.split("=", 1)
+        extra[k.strip()] = v.strip()
+    out = walk(cycle, keys=extra or None, shot_dir=shot_dir)
+    for s in out.steps:
+        mark = "ok" if s.ok else ("ABORT" if s.create_aborted else "fail")
+        console.print(f"  [{mark}] {s.tcode:8} {s.title or s.detail}")
+    console.print(f"journal: {out.shot_dir}/WALK.md")
+    if not out.ok:
+        if out.abort_reason:
+            console.print(f"[red]{out.abort_reason}[/red]")
+        raise SystemExit(2)
+    console.print("[green]display walk finished — nothing created[/green]")
 
 
 if __name__ == "__main__":
